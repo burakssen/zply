@@ -46,6 +46,124 @@ pub const ScanResult = union(enum) {
     incomplete: Incomplete,
 };
 
+/// Incremental structural scanner. One instance tracks progress through a
+/// single record so that a partially received list payload does not cause the
+/// already-scanned properties and list count to be reinterpreted on every
+/// subsequent input extension. The scanner borrows the compiled layout and
+/// never allocates.
+pub const Scanner = struct {
+    layout: *const layout_mod.ElementLayout,
+    endian: std.builtin.Endian,
+    limits: Limits,
+    counts_out: ?[]usize,
+    property_index: usize = 0,
+    offset: usize = 0,
+    total_list_items: usize = 0,
+    /// State for the list currently being scanned.
+    list_count: usize = 0,
+    list_payload_end: usize = 0,
+    in_list_payload: bool = false,
+    started: bool = false,
+
+    pub fn init(
+        layout: *const layout_mod.ElementLayout,
+        endian: std.builtin.Endian,
+        limits: Limits,
+        counts_out: ?[]usize,
+    ) ScanError!Scanner {
+        if (counts_out) |counts| {
+            if (counts.len < layout.properties.len) return error.InvalidLayout;
+        }
+        return .{
+            .layout = layout,
+            .endian = endian,
+            .limits = limits,
+            .counts_out = counts_out,
+        };
+    }
+
+    /// Resets per-record state. Called by the streaming reader when a new
+    /// record begins; repeated `scan` calls on the same record resume.
+    pub fn reset(self: *Scanner) void {
+        self.property_index = 0;
+        self.offset = 0;
+        self.total_list_items = 0;
+        self.list_count = 0;
+        self.list_payload_end = 0;
+        self.in_list_payload = false;
+        self.started = true;
+        if (self.counts_out) |counts| @memset(counts[0..self.layout.properties.len], 0);
+    }
+
+    pub fn scan(self: *Scanner, bytes: []const u8) ScanError!ScanResult {
+        if (!self.started) self.reset();
+        while (self.property_index < self.layout.properties.len) {
+            const property_index = self.property_index;
+            const prop = self.layout.properties[property_index];
+            if (prop.property_index != property_index) return error.InvalidLayout;
+            const op = prop.binary_op orelse return error.InvalidLayout;
+            switch (op) {
+                .scalar => |s| {
+                    if (s.width != s.scalar_type.byteWidth() or prop.scalar_type != s.scalar_type)
+                        return error.InvalidLayout;
+                    const end = try checkedEnd(self.offset, s.width, self.limits.max_record_bytes);
+                    if (end > bytes.len) return .{ .incomplete = .{
+                        .property_index = property_index,
+                        .stage = .scalar,
+                        .required_total = end,
+                    } };
+                    self.offset = end;
+                    self.property_index += 1;
+                },
+                .list => |l| {
+                    if (prop.scalar_type != null or
+                        l.count_width != l.count_type.byteWidth() or
+                        l.item_width != l.item_type.byteWidth()) return error.InvalidLayout;
+
+                    if (!self.in_list_payload) {
+                        const count_end = try checkedEnd(self.offset, l.count_width, self.limits.max_record_bytes);
+                        if (count_end > bytes.len) return .{ .incomplete = .{
+                            .property_index = property_index,
+                            .stage = .list_count,
+                            .required_total = count_end,
+                        } };
+
+                        const count = list_count.decodeListCount(l.count_type, self.endian, bytes[self.offset..count_end]) catch |err| switch (err) {
+                            error.InsufficientBytes => return error.InvalidLayout, // checked above
+                            error.NegativeListCount => return error.NegativeListCount,
+                            error.CountOverflow => return error.CountOverflow,
+                        };
+                        if (count > self.limits.max_list_items_per_record) return error.ListTooLarge;
+                        const payload_bytes = std.math.mul(usize, count, l.item_width) catch return error.SizeOverflow;
+                        const payload_end = try checkedEnd(count_end, payload_bytes, self.limits.max_record_bytes);
+                        self.total_list_items = std.math.add(usize, self.total_list_items, count) catch return error.SizeOverflow;
+                        if (self.counts_out) |counts| counts[property_index] = count;
+                        self.list_count = count;
+                        self.list_payload_end = payload_end;
+                        self.offset = count_end;
+                        self.in_list_payload = true;
+                    }
+
+                    if (self.list_payload_end > bytes.len) return .{ .incomplete = .{
+                        .property_index = property_index,
+                        .stage = .list_items,
+                        .required_total = self.list_payload_end,
+                    } };
+                    self.offset = self.list_payload_end;
+                    self.in_list_payload = false;
+                    self.list_count = 0;
+                    self.property_index += 1;
+                },
+            }
+        }
+        if (self.offset < self.layout.minimum_record_size) return error.InvalidLayout;
+        return .{ .complete = .{
+            .byte_length = self.offset,
+            .total_list_items = self.total_list_items,
+        } };
+    }
+};
+
 /// Scan a single binary record prefix from its first byte.
 ///
 /// `counts_out` is optional and, when supplied, must have at least one entry
@@ -60,65 +178,9 @@ pub fn scanRecord(
     limits: Limits,
     counts_out: ?[]usize,
 ) ScanError!ScanResult {
-    if (counts_out) |counts| {
-        if (counts.len < layout.properties.len) return error.InvalidLayout;
-        @memset(counts[0..layout.properties.len], 0);
-    }
-
-    var offset: usize = 0;
-    var total_list_items: usize = 0;
-
-    for (layout.properties, 0..) |prop, property_index| {
-        if (prop.property_index != property_index) return error.InvalidLayout;
-        const op = prop.binary_op orelse return error.InvalidLayout;
-        switch (op) {
-            .scalar => |s| {
-                if (s.width != s.scalar_type.byteWidth() or prop.scalar_type != s.scalar_type)
-                    return error.InvalidLayout;
-                const end = try checkedEnd(offset, s.width, limits.max_record_bytes);
-                if (end > bytes.len) return .{ .incomplete = .{
-                    .property_index = property_index,
-                    .stage = .scalar,
-                    .required_total = end,
-                } };
-                offset = end;
-            },
-            .list => |l| {
-                if (prop.scalar_type != null or
-                    l.count_width != l.count_type.byteWidth() or
-                    l.item_width != l.item_type.byteWidth()) return error.InvalidLayout;
-
-                const count_end = try checkedEnd(offset, l.count_width, limits.max_record_bytes);
-                if (count_end > bytes.len) return .{ .incomplete = .{
-                    .property_index = property_index,
-                    .stage = .list_count,
-                    .required_total = count_end,
-                } };
-
-                const count = list_count.decodeListCount(l.count_type, endian, bytes[offset..count_end]) catch |err| switch (err) {
-                    error.InsufficientBytes => return error.InvalidLayout, // checked above
-                    error.NegativeListCount => return error.NegativeListCount,
-                    error.CountOverflow => return error.CountOverflow,
-                };
-                if (count > limits.max_list_items_per_record) return error.ListTooLarge;
-                const payload_bytes = std.math.mul(usize, count, l.item_width) catch return error.SizeOverflow;
-                const payload_end = try checkedEnd(count_end, payload_bytes, limits.max_record_bytes);
-                total_list_items = std.math.add(usize, total_list_items, count) catch return error.SizeOverflow;
-                if (counts_out) |counts| counts[property_index] = count;
-                if (payload_end > bytes.len) return .{ .incomplete = .{
-                    .property_index = property_index,
-                    .stage = .list_items,
-                    .required_total = payload_end,
-                } };
-                offset = payload_end;
-            },
-        }
-    }
-    if (offset < layout.minimum_record_size) return error.InvalidLayout;
-    return .{ .complete = .{
-        .byte_length = offset,
-        .total_list_items = total_list_items,
-    } };
+    var scanner = try Scanner.init(layout, endian, limits, counts_out);
+    scanner.reset();
+    return scanner.scan(bytes);
 }
 
 fn checkedEnd(start: usize, width: usize, max_record_bytes: usize) ScanError!usize {

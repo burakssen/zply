@@ -18,6 +18,7 @@ pub const Control = struct {
         // wrapper did not exist yet. Charge its exact requested size.
         var bootstrap = self.budget.reserve(@sizeOf(Control)) catch unreachable;
         bootstrap.commit(@sizeOf(Control)) catch unreachable;
+        self.budget.noteAllocation();
         return self;
     }
 
@@ -28,6 +29,7 @@ pub const Control = struct {
         }
         const parent = self.parent;
         self.budget.release(@sizeOf(Control));
+        self.budget.noteFree();
         parent.destroy(self);
     }
 };

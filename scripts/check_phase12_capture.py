@@ -13,22 +13,29 @@ from collections import defaultdict
 from pathlib import Path
 
 HEADER = (
-    'row_type','workload','mode','records','body_bytes','list_items','chunk_bytes',
+    'row_type','workload','mode','consumer','records','body_bytes','list_items','chunk_bytes',
     'budget_bytes','warmups','rounds','round','lifecycle_ns','body_ns',
     'lifecycle_p05_ns','lifecycle_p95_ns','body_p05_ns','body_p95_ns',
-    'records_per_s','input_gbps','list_items_per_s','parser_peak_bytes',
-    'batches','native_submissions','inline_decodes','max_active','digest_sum','digest_xor',
+    'records_per_s','input_gbps','list_items_per_s','parser_peak_bytes','allocation_count',
+    'batches','native_submissions','inline_decodes','max_active',
+    'fixture_digest_sum','fixture_digest_xor','consumer_digest_sum','consumer_digest_xor',
 )
 INTS = set(HEADER) - {
-    'row_type','workload','mode','records_per_s','input_gbps','list_items_per_s','digest_sum','digest_xor',
+    'row_type','workload','mode','consumer','records_per_s','input_gbps','list_items_per_s',
+    'fixture_digest_sum','fixture_digest_xor','consumer_digest_sum','consumer_digest_xor',
 }
 FIELDS_SAME = {
-    'workload','mode','records','body_bytes','list_items','chunk_bytes','budget_bytes',
-    'warmups','rounds','digest_sum','digest_xor',
+    'workload','mode','consumer','records','body_bytes','list_items','chunk_bytes','budget_bytes',
+    'warmups','rounds','fixture_digest_sum','fixture_digest_xor',
 }
 WORKLOADS = {
+    # Phase 11 legacy workloads
     'binary_xyz_f32','binary_xyz_f64','binary_xyzrgb',
     'binary_polygons_le','binary_polygons_be','ascii_xyz','ascii_polygons',
+    # Phase 12 extended workloads
+    'binary_normals','binary_wide','binary_mixed_elements',
+    'binary_large_lists','binary_multi_list','ascii_ints',
+    'ascii_scientific','ascii_long','ascii_wide',
 }
 MODES = {'single-ordered','threaded-ordered','threaded-unordered','single-small-chunk'}
 
@@ -37,7 +44,8 @@ def rank(values: list[int], pct: int) -> int:
     return sorted(values)[max(1,(len(values)*pct+99)//100)-1]
 
 
-def validate_text(text: str, require_full_matrix: bool = False) -> tuple[int, int]:
+def parse_text(text: str) -> tuple[dict[tuple[str, str], list[dict]], dict[tuple[str, str], dict]]:
+    """Parse a capture after validating each individual row's invariants."""
     # Zig Build may prepend diagnostic progress to the stderr capture.
     lines = text.splitlines()
     try:
@@ -55,19 +63,19 @@ def validate_text(text: str, require_full_matrix: bool = False) -> tuple[int, in
         row = dict(zip(HEADER, cells))
         for field in INTS:
             row[field] = int(row[field])
-        for field in ('digest_sum','digest_xor'):
+        for field in ('fixture_digest_sum','fixture_digest_xor','consumer_digest_sum','consumer_digest_xor'):
             row[field] = int(row[field], 16)
         for field in ('records_per_s','input_gbps','list_items_per_s'):
             row[field] = float(row[field])
             if not math.isfinite(row[field]) or row[field] < 0:
                 raise ValueError(f'invalid throughput {field}')
-        if row['workload'] not in WORKLOADS or row['mode'] not in MODES:
+        if row['workload'] not in WORKLOADS or row['mode'] not in MODES or row['consumer'] not in {'minimal','validation'}:
             raise ValueError('unknown workload or mode')
         if row['records'] <= 0 or row['rounds'] <= 0 or row['warmups'] < 0:
             raise ValueError('invalid run parameters')
         if row['lifecycle_ns'] < row['body_ns'] or row['body_ns'] <= 0:
             raise ValueError('invalid timing scope')
-        if row['parser_peak_bytes'] > row['budget_bytes'] or row['batches'] <= 0:
+        if row['parser_peak_bytes'] > row['budget_bytes'] or row['batches'] <= 0 or row['allocation_count'] <= 0:
             raise ValueError('invalid memory or batch counters')
         if row['mode'].startswith('threaded-') and row['native_submissions'] <= 0:
             raise ValueError('threaded mode executed without native tasks')
@@ -82,8 +90,6 @@ def validate_text(text: str, require_full_matrix: bool = False) -> tuple[int, in
             summaries[key] = row
     if not samples or summaries.keys() != samples.keys():
         raise ValueError('missing samples or summaries')
-    if require_full_matrix and set(samples) != {(a,b) for a in WORKLOADS for b in MODES}:
-        raise ValueError('expected 28 workload/mode combinations')
     for key, rows in samples.items():
         summary = summaries[key]
         if len(rows) != summary['rounds'] or {r['round'] for r in rows} != set(range(summary['rounds'])):
@@ -91,6 +97,9 @@ def validate_text(text: str, require_full_matrix: bool = False) -> tuple[int, in
         for row in rows:
             if any(row[f] != summary[f] for f in FIELDS_SAME):
                 raise ValueError(f'incompatible sample and summary metadata for {key}')
+            if (row['consumer_digest_sum'], row['consumer_digest_xor']) != (
+                summary['consumer_digest_sum'], summary['consumer_digest_xor']):
+                raise ValueError(f'inconsistent consumer digest for {key}')
         life = sorted(r['lifecycle_ns'] for r in rows)
         body = sorted(r['body_ns'] for r in rows)
         for actual, expected in (
@@ -104,6 +113,13 @@ def validate_text(text: str, require_full_matrix: bool = False) -> tuple[int, in
         ):
             if actual != expected:
                 raise ValueError(f'bad summary statistic for {key}: {actual} != {expected}')
+    return samples, summaries
+
+
+def validate_text(text: str, require_full_matrix: bool = False) -> tuple[int, int]:
+    samples, _ = parse_text(text)
+    if require_full_matrix and set(samples) != {(a,b) for a in WORKLOADS for b in MODES}:
+        raise ValueError('expected 64 workload/mode combinations')
     return len(samples), sum(map(len,samples.values()))
 
 

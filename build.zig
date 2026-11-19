@@ -58,6 +58,7 @@ const test_files = [_][]const u8{
     "ascii_fragment_test.zig",
     "ascii_matrix_test.zig",
     "ascii_concurrent_test.zig",
+    "phase12_numeric_fastpath_test.zig",
 };
 
 pub fn build(b: *std.Build) void {
@@ -334,6 +335,12 @@ pub fn build(b: *std.Build) void {
     phase12_run.addPassthruArgs();
     const phase12_step = b.step("bench-phase12", "Unified Phase 12 benchmark (raw samples + summaries, CSV)");
     phase12_step.dependOn(&phase12_run.step);
+
+    // Installed copy for sampling profilers (`sample`, `samply`, `perf`) and
+    // for stable command lines in docs/performance/profiles.
+    const phase12_install = b.addInstallArtifact(phase12_exe, .{});
+    const phase12_install_step = b.step("install-bench", "Install the Phase 12 benchmark executable to zig-out/bin");
+    phase12_install_step.dependOn(&phase12_install.step);
 
     const phase12_test_mod = b.createModule(.{
         .target = target,

@@ -53,6 +53,7 @@ pub const modes = [_]Mode{ .single_ordered, .threaded_ordered, .threaded_unorder
 pub const workloads = [_]Kind{ .binary_xyz_f32, .binary_xyz_f64, .binary_xyzrgb, .binary_polygons_le, .binary_polygons_be, .ascii_xyz, .ascii_polygons };
 
 const digest_util = @import("digest.zig");
+const minimal_consumer = @import("minimal_consumer.zig");
 const timing = @import("timing.zig");
 const mix = digest_util.mix;
 const Digest = digest_util.Digest;
@@ -230,14 +231,31 @@ pub const Sample = struct {
     nanoseconds: i96,
     batches: usize,
     peak_bytes: usize,
+    allocation_count: u64,
     native_submissions: u64,
     inline_decodes: u64,
     max_active: usize,
+    consumer_digest: Digest,
+};
+
+/// Controls benchmark output work only; it never changes Parser options or
+/// parser behavior. `validation` is the correctness-default mode.
+pub const Consumer = enum {
+    minimal,
+    validation,
+
+    pub fn label(self: Consumer) []const u8 {
+        return switch (self) {
+            .minimal => "minimal",
+            .validation => "validation",
+        };
+    }
 };
 
 pub const RunOptions = struct {
     chunk_size: usize,
     memory_budget: usize,
+    consumer: Consumer = .validation,
 };
 
 pub fn runOnce(allocator: std.mem.Allocator, io: std.Io, input: Input, mode: Mode) !Sample {
@@ -270,7 +288,9 @@ pub fn runOnceConfigured(allocator: std.mem.Allocator, io: std.Io, input: Input,
         const info = batch.info();
         const start_record: usize = @intCast(info.first_record);
         if (info.element_index != 0 or start_record + info.record_count > input.records) return error.InvalidBatchMetadata;
-        if (input.kind.isPolygon()) {
+        if (options.consumer == .minimal) {
+            items += try minimal_consumer.consume(batch, &digest);
+        } else if (input.kind.isPolygon()) {
             const lists = try batch.listColumn(0);
             const material = try batch.typedColumn(u16, 1);
             if (material.len != info.record_count) return error.InvalidColumnShape;
@@ -319,12 +339,16 @@ pub fn runOnceConfigured(allocator: std.mem.Allocator, io: std.Io, input: Input,
     if ((mode == .threaded_ordered or mode == .threaded_unordered) and
         execution.native_submissions == 0) return error.NativeConcurrencyInactive;
     const end = std.Io.Clock.awake.now(io);
-    if (memory.peak_total_bytes > options.memory_budget or records != input.records or items != input.list_items or !digest.eql(input.expected)) {
+    if (memory.peak_total_bytes > options.memory_budget or records != input.records or
+        items != input.list_items or
+        (options.consumer == .validation and !digest.eql(input.expected)))
+    {
         std.debug.print("INVALID BENCHMARK workload={s} mode={s} records={d}/{d} items={d}/{d}\n", .{
             @tagName(input.kind), mode.label(), records, input.records, items, input.list_items,
         });
         return error.IncorrectDecodedOutput;
     }
+    std.mem.doNotOptimizeAway(digest);
     const elapsed = try timing.elapsedNs(start, end);
     const body_elapsed = try timing.elapsedNs(body_start, body_end);
     if (body_elapsed > elapsed) return error.InvalidMeasurement;
@@ -333,9 +357,11 @@ pub fn runOnceConfigured(allocator: std.mem.Allocator, io: std.Io, input: Input,
         .body_nanoseconds = body_elapsed,
         .batches = batches,
         .peak_bytes = memory.peak_total_bytes,
+        .allocation_count = memory.allocation_count,
         .native_submissions = execution.native_submissions,
         .inline_decodes = execution.inline_decodes,
         .max_active = execution.max_active_decodes,
+        .consumer_digest = digest,
     };
 }
 

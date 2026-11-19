@@ -701,6 +701,32 @@ pub const Pool = struct {
         }
         // Zero-property elements have logical records but no payload work.
         if (layout.properties.len == 0) return;
+        // Production fast path: hoist property dispatch and offset resolution
+        // out of the record loop. Test hooks retain the record-major traversal
+        // so their per-record checkpoints keep identical semantics.
+        if (hooks == null and layout.properties.len > 1 and width <= 256) {
+            for (layout.properties, target_value.owned, 0..) |prop, own, pi| {
+                const offset = prop.fixed_offset.?;
+                switch (own) {
+                    inline else => |dest, tag| {
+                        const T = tag.zigType();
+                        const field_width = @sizeOf(T);
+                        var i: usize = 0;
+                        while (i < n) : (i += 1) {
+                            if (i % 4096 == 0) {
+                                if (cancel_flag) |flag| {
+                                    if (flag.load(.acquire)) return error.Cancelled;
+                                }
+                            }
+                            const src = bytes[i * width + offset ..][0..field_width];
+                            dest[i] = binary.decodeScalarAs(T, endian, src) catch unreachable;
+                        }
+                    },
+                }
+                target_value.columns[pi] = .{ .property_index = prop.property_index, .values = own.view(n) };
+            }
+            return;
+        }
         for (0..n) |i| {
             if (i % 4096 == 0) {
                 if (@import("builtin").is_test and i != 0) {

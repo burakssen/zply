@@ -10,6 +10,9 @@ pub const MemoryStats = struct {
     reserved_bytes: usize,
     peak_live_bytes: usize,
     peak_total_bytes: usize,
+    allocation_count: u64,
+    resize_count: u64,
+    free_count: u64,
     batch_reductions: u64,
     pool_evictions: u64,
     bytes_reclaimed: usize,
@@ -67,6 +70,9 @@ pub const MemoryBudget = struct {
     pool_evictions: u64 = 0,
     bytes_reclaimed: usize = 0,
     reservation_failures: u64 = 0,
+    allocation_count: u64 = 0,
+    resize_count: u64 = 0,
+    free_count: u64 = 0,
     entries: [max_reservations]Entry = @splat(.{}),
 
     pub fn init(limit: usize) MemoryBudget {
@@ -156,6 +162,23 @@ pub const MemoryBudget = struct {
         if (bytes > self.live) @panic("memory accounting underflow");
         self.live -= bytes;
     }
+    /// Successful allocator operations are separate from byte accounting so
+    /// benchmarks can distinguish churn from peak live capacity.
+    pub fn noteAllocation(self: *MemoryBudget) void {
+        self.lock();
+        defer self.unlock();
+        self.allocation_count +%= 1;
+    }
+    pub fn noteResize(self: *MemoryBudget) void {
+        self.lock();
+        defer self.unlock();
+        self.resize_count +%= 1;
+    }
+    pub fn noteFree(self: *MemoryBudget) void {
+        self.lock();
+        defer self.unlock();
+        self.free_count +%= 1;
+    }
     pub fn noteBatchReduction(self: *MemoryBudget) void {
         self.lock();
         defer self.unlock();
@@ -180,6 +203,9 @@ pub const MemoryBudget = struct {
             .pool_evictions = self.pool_evictions,
             .bytes_reclaimed = self.bytes_reclaimed,
             .reservation_failures = self.reservation_failures,
+            .allocation_count = self.allocation_count,
+            .resize_count = self.resize_count,
+            .free_count = self.free_count,
         };
     }
     pub fn available(self: *MemoryBudget) usize {

@@ -39,22 +39,64 @@ test "M2 CLI parses explicit benchmark selection and memory parameters" {
         "--rounds=3",
     };
     const config = try config_mod.parse(&args);
-    try std.testing.expect(config.selectedWorkload(.binary_polygons_be));
-    try std.testing.expect(!config.selectedWorkload(.ascii_xyz));
+    try std.testing.expect(config.selectedLegacy(.binary_polygons_be));
+    try std.testing.expect(!config.selectedLegacy(.ascii_xyz));
+    try std.testing.expect(!config.selectedExtended(.binary_wide));
     try std.testing.expect(config.selectedMode(.threaded_ordered));
     try std.testing.expect(!config.selectedMode(.single_ordered));
     try std.testing.expectEqual(@as(usize, 128), config.records);
     try std.testing.expectEqual(@as(usize, 3), config.rounds);
     try std.testing.expectEqual(@as(usize, 8192), config.chunkFor(.single_small_chunk));
     try std.testing.expectEqual(@as(usize, 65536), config.chunkFor(.threaded_ordered));
+    try std.testing.expectEqual(m16.Consumer.validation, config.consumer);
 }
 
 test "M2 invalid CLI options are rejected" {
     try std.testing.expectError(error.UnknownBenchmarkOption, config_mod.parse(&.{ "bench", "--unknown" }));
     try std.testing.expectError(error.UnknownWorkload, config_mod.parse(&.{ "bench", "--workload=xyz" }));
     try std.testing.expectError(error.UnknownMode, config_mod.parse(&.{ "bench", "--mode=fast" }));
+    try std.testing.expectError(error.UnknownConsumer, config_mod.parse(&.{ "bench", "--consumer=fast" }));
     try std.testing.expectError(error.InvalidBenchmarkOption, config_mod.parse(&.{ "bench", "--rounds=0" }));
     try std.testing.expectError(error.InvalidBenchmarkOption, config_mod.parse(&.{ "bench", "--chunk-bytes=999999999" }));
+}
+
+test "M4 minimal consumer is selectable and preserves batch accounting" {
+    const config = try config_mod.parse(&.{ "bench", "--consumer=minimal" });
+    try std.testing.expectEqual(m16.Consumer.minimal, config.consumer);
+
+    var single: std.Io.Threaded = .init_single_threaded;
+    const input = try m16.createInputWithRecords(std.testing.allocator, .binary_polygons_le, 128);
+    defer input.deinit(std.testing.allocator);
+    const result = try m16.runOnceConfigured(std.testing.allocator, single.io(), input, .single_ordered, .{
+        .chunk_size = 4096,
+        .memory_budget = 1024 * 1024,
+        .consumer = .minimal,
+    });
+    try std.testing.expect(result.consumer_digest.sum != 0 or result.consumer_digest.xor_value != 0);
+    try std.testing.expect(result.allocation_count > 0);
+    try std.testing.expect(result.batches > 0);
+}
+
+test "M3 extended workloads parse, select and verify small end-to-end samples" {
+    const p12 = @import("phase12_workloads.zig");
+    const parsed = try config_mod.parse(&.{ "bench", "--workload=ascii_scientific" });
+    try std.testing.expect(parsed.selectedExtended(.ascii_scientific));
+    try std.testing.expect(!parsed.selectedLegacy(.ascii_xyz));
+
+    var single: std.Io.Threaded = .init_single_threaded;
+    inline for (p12.workloads) |kind| {
+        const input = try p12.createInputWithRecords(std.testing.allocator, kind, 64);
+        defer input.deinit(std.testing.allocator);
+        const result = try p12.runOnceConfigured(std.testing.allocator, single.io(), input, .single_ordered, .{
+            .chunk_size = 4096,
+            .memory_budget = 4 * 1024 * 1024,
+        });
+        try std.testing.expect(result.nanoseconds >= result.body_nanoseconds);
+        try std.testing.expect(result.body_nanoseconds > 0);
+        try std.testing.expect(result.peak_bytes <= 4 * 1024 * 1024);
+        try std.testing.expect(result.allocation_count > 0);
+        try std.testing.expect(result.batches > 0);
+    }
 }
 
 test "M2 small end-to-end samples verify all three encodings and dual timing scopes" {
@@ -69,6 +111,7 @@ test "M2 small end-to-end samples verify all three encodings and dual timing sco
         try std.testing.expect(result.nanoseconds >= result.body_nanoseconds);
         try std.testing.expect(result.body_nanoseconds > 0);
         try std.testing.expect(result.peak_bytes <= 1024 * 1024);
+        try std.testing.expect(result.allocation_count > 0);
         try std.testing.expect(result.batches > 0);
     }
 }

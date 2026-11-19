@@ -37,6 +37,7 @@ pub const BudgetAllocator = struct {
             return null;
         };
         reservation.commit(len) catch unreachable;
+        self.budget.noteAllocation();
         return ptr;
     }
     fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ra: usize) bool {
@@ -44,6 +45,7 @@ pub const BudgetAllocator = struct {
         if (new_len <= memory.len) {
             if (!self.parent.rawResize(memory, alignment, new_len, ra)) return false;
             self.budget.release(memory.len - new_len);
+            self.budget.noteResize();
             return true;
         }
         const delta = new_len - memory.len;
@@ -57,6 +59,7 @@ pub const BudgetAllocator = struct {
             return false;
         }
         reservation.commit(delta) catch unreachable;
+        self.budget.noteResize();
         return true;
     }
     fn remap(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize, _: usize) ?[*]u8 {
@@ -69,5 +72,6 @@ pub const BudgetAllocator = struct {
         const self: *BudgetAllocator = @ptrCast(@alignCast(ctx));
         self.parent.rawFree(memory, alignment, ra);
         self.budget.release(memory.len);
+        self.budget.noteFree();
     }
 };

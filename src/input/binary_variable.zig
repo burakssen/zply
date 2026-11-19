@@ -44,6 +44,10 @@ pub const Reader = struct {
     /// Most recently discovered structural requirement; also useful for diagnostics.
     requirement: ?boundary.Incomplete = null,
     active_element_index: ?usize = null,
+    /// Incremental scanner for the in-progress record. Retains per-property
+    /// progress so extending a partially received list payload does not
+    /// rescan earlier properties or re-decode the list count.
+    scanner: ?boundary.Scanner = null,
     /// Number of contiguous input spans copied into scratch. Useful for
     /// measuring the producer's work; a buffered reader can yield many bytes
     /// in one span, while a one-byte source necessarily yields one at a time.
@@ -96,12 +100,18 @@ pub const Reader = struct {
             self.in_progress = true;
             self.active_element_index = layout.element_index;
             self.requirement = null;
+            const scanner = boundary.Scanner.init(layout, endian, limits, counts_out) catch |err| {
+                self.failed = true;
+                return err;
+            };
+            self.scanner = scanner;
+            self.scanner.?.reset();
         } else if (self.active_element_index != layout.element_index) {
             return error.InvalidReaderState;
         }
 
         while (true) {
-            const result = boundary.scanRecord(layout, endian, self.scratch.items, limits, counts_out) catch |err| {
+            const result = self.scanner.?.scan(self.scratch.items) catch |err| {
                 self.failed = true;
                 return err;
             };
@@ -126,6 +136,7 @@ pub const Reader = struct {
                     self.in_progress = false;
                     self.active_element_index = null;
                     self.requirement = null;
+                    self.scanner = null;
                     return view;
                 },
                 .incomplete => |missing| {

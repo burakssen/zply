@@ -4,7 +4,7 @@
 
 This is the **measurement-foundation audit**, not a speed optimization or a
 new benchmark harness. Audited at Git commit `026a91e` with Zig build targets
-from `build.zig`. There are **10** benchmark entry points. The exhaustive,
+from `build.zig`. There are **11** benchmark entry points. The exhaustive,
 machine-readable inventory is [`../../benchmarks/audit.json`](../../benchmarks/audit.json).
 
 The Phase 11 M16 benchmark (`bench-phase11`) is the best existing **interim
@@ -28,6 +28,7 @@ per-round measurements. Capture a new, pinned baseline in M4 after M2–M3.
 | `bench-binary-variable` | `binary_variable_pipeline.zig` | Mixed pipeline | Structural scan; chunk assembly; or complete parser lifecycle | 2 warmup, 5 measured, median |
 | `bench-binary-variable-matrix` | `binary_variable_matrix.zig` | End-to-end | Complete binary-list parser lifecycle across budget/chunk grid | 1 warmup, 3 measured, median |
 | `bench-phase11` | `phase11_performance.zig` | End-to-end | Full parser lifecycle + decoded-value digest and validation | 2 warmup, 9 measured, median/p05/p95 |
+| `bench-phase12` | `main.zig` / `harness.zig` | End-to-end | Unified lifecycle/body timing with validation or minimal consumer | 3 warmup, 15 measured, median/p05/p95 + raw rounds |
 
 **Classification rules:** "micro" isolates primitive token/scalar operations;
 "pipeline" isolates one or more production stages without the public parser

@@ -1,7 +1,16 @@
-//! Phase 12 M2: CLI configuration for the shared end-to-end harness.
+//! Phase 12 M2/M3: CLI configuration for the shared end-to-end harness.
 //! All flags are local to the benchmark executable, never Parser.Options.
 const std = @import("std");
 const m16 = @import("phase11_performance.zig");
+const p12 = @import("phase12_workloads.zig");
+
+/// A workload name may select either the preserved Phase 11 suite or the
+/// extended Phase 12 matrix. The two enums stay separate so the legacy
+/// `bench-phase11` CSV contract cannot drift.
+pub const Selection = union(enum) {
+    legacy: m16.Kind,
+    extended: p12.Kind,
+};
 
 pub const Config = struct {
     records: usize = m16.record_count,
@@ -10,7 +19,8 @@ pub const Config = struct {
     budget_bytes: usize = m16.memory_budget,
     warmups: usize = 3,
     rounds: usize = 15,
-    workload: ?m16.Kind = null,
+    consumer: m16.Consumer = .validation,
+    workload: ?Selection = null,
     mode: ?m16.Mode = null,
     help: bool = false,
 
@@ -18,8 +28,20 @@ pub const Config = struct {
         return if (mode == .single_small_chunk) self.small_chunk_bytes else self.chunk_bytes;
     }
 
-    pub fn selectedWorkload(self: Config, kind: m16.Kind) bool {
-        return self.workload == null or self.workload.? == kind;
+    pub fn selectedLegacy(self: Config, kind: m16.Kind) bool {
+        const selection = self.workload orelse return true;
+        return switch (selection) {
+            .legacy => |selected| selected == kind,
+            .extended => false,
+        };
+    }
+
+    pub fn selectedExtended(self: Config, kind: p12.Kind) bool {
+        const selection = self.workload orelse return true;
+        return switch (selection) {
+            .extended => |selected| selected == kind,
+            .legacy => false,
+        };
     }
 
     pub fn selectedMode(self: Config, mode: m16.Mode) bool {
@@ -27,9 +49,12 @@ pub const Config = struct {
     }
 };
 
-fn parseKind(value: []const u8) !m16.Kind {
+fn parseWorkload(value: []const u8) !Selection {
     inline for (m16.workloads) |kind| {
-        if (std.mem.eql(u8, value, @tagName(kind))) return kind;
+        if (std.mem.eql(u8, value, @tagName(kind))) return .{ .legacy = kind };
+    }
+    inline for (p12.workloads) |kind| {
+        if (std.mem.eql(u8, value, @tagName(kind))) return .{ .extended = kind };
     }
     return error.UnknownWorkload;
 }
@@ -39,6 +64,13 @@ fn parseMode(value: []const u8) !m16.Mode {
         if (std.mem.eql(u8, value, mode.label())) return mode;
     }
     return error.UnknownMode;
+}
+
+fn parseConsumer(value: []const u8) !m16.Consumer {
+    inline for (std.enums.values(m16.Consumer)) |consumer| {
+        if (std.mem.eql(u8, value, consumer.label())) return consumer;
+    }
+    return error.UnknownConsumer;
 }
 
 fn unsigned(value: []const u8) !usize {
@@ -52,7 +84,7 @@ pub fn parse(args: []const []const u8) !Config {
         if (std.mem.eql(u8, argument, "--help")) {
             config.help = true;
         } else if (std.mem.startsWith(u8, argument, "--workload=")) {
-            config.workload = try parseKind(argument[11..]);
+            config.workload = try parseWorkload(argument[11..]);
         } else if (std.mem.startsWith(u8, argument, "--mode=")) {
             config.mode = try parseMode(argument[7..]);
         } else if (std.mem.startsWith(u8, argument, "--records=")) {
@@ -67,6 +99,8 @@ pub fn parse(args: []const []const u8) !Config {
             config.warmups = try unsigned(argument[10..]);
         } else if (std.mem.startsWith(u8, argument, "--rounds=")) {
             config.rounds = try unsigned(argument[9..]);
+        } else if (std.mem.startsWith(u8, argument, "--consumer=")) {
+            config.consumer = try parseConsumer(argument[11..]);
         } else {
             return error.UnknownBenchmarkOption;
         }
@@ -86,17 +120,23 @@ pub fn parse(args: []const []const u8) !Config {
 
 pub fn usage() void {
     std.debug.print(
-        "Phase 12 M2 unified PLY benchmark (CSV written to stderr)\n" ++
+        "Phase 12 unified PLY benchmark (CSV written to stderr)\n" ++
             "  zig build bench-phase12 -Doptimize=ReleaseFast -- [options]\n" ++
-            "  --workload=<name>          one of seven M16 workloads (default all)\n" ++
+            "  --workload=<name>          Phase 11 or Phase 12 workload (default all)\n" ++
             "  --mode=<name>              single-ordered, threaded-ordered, threaded-unordered, single-small-chunk\n" ++
-            "  --records=<N>              records per dataset (default 250000)\n" ++
+            "  --records=<N>              records per dataset (default 250000; per element for multi-element files)\n" ++
             "  --chunk-bytes=<N>          ordinary chunk target (default 262144)\n" ++
             "  --small-chunk-bytes=<N>    small chunk target (default 8192)\n" ++
             "  --budget-bytes=<N>         parser budget (default 16777216)\n" ++
             "  --warmups=<N>              default 3\n" ++
             "  --rounds=<N>               default 15\n" ++
-            "  --help\n",
+            "  --consumer=<name>          validation (default) or minimal\n" ++
+            "  --help\n" ++
+            "\nPhase 11 workloads: binary_xyz_f32, binary_xyz_f64, binary_xyzrgb,\n" ++
+            "  binary_polygons_le, binary_polygons_be, ascii_xyz, ascii_polygons\n" ++
+            "Phase 12 workloads: binary_normals, binary_wide, binary_mixed_elements,\n" ++
+            "  binary_large_lists, binary_multi_list, ascii_ints, ascii_scientific,\n" ++
+            "  ascii_long, ascii_wide\n",
         .{},
     );
 }
