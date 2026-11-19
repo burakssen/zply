@@ -1,0 +1,9 @@
+ply
+format ascii 1.0
+element sample 2
+property uchar id
+property list uchar short values
+property float score
+end_header
+7 2 10 -10 1
+8 0 -2

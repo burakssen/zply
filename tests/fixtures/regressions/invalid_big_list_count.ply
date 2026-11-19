@@ -1,0 +1,6 @@
+ply
+format binary_big_endian 1.0
+element face 1
+property list uint int indices
+end_header
+

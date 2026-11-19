@@ -1,0 +1,285 @@
+diff --git a/.github/workflows/zply-performance.yml b/.github/workflows/zply-performance.yml
+new file mode 100644
+index 0000000..487a086
+--- /dev/null
++++ b/.github/workflows/zply-performance.yml
+@@ -0,0 +1,60 @@
++name: zply Phase 11 performance capture
++
++on:
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++jobs:
++  benchmark:
++    name: ${{ matrix.os }} / ReleaseFast
++    runs-on: ${{ matrix.os }}
++    strategy:
++      fail-fast: false
++      matrix:
++        os: [ubuntu-24.04, macos-15]
++    defaults:
++      run:
++        working-directory: zply
++    steps:
++      - name: Check out source
++        uses: actions/checkout@v4
++      - name: Install Zig 0.17.1
++        uses: mlugg/setup-zig@v2
++        with:
++          version: 0.17.1
++      - name: Validate benchmark build and comparator
++        run: |
++          zig build test -Doptimize=ReleaseFast
++          python3 scripts/test_compare_phase11.py
++      - name: Capture environment
++        run: |
++          uname -a > phase11-environment.txt
++          zig version >> phase11-environment.txt
++          git rev-parse HEAD >> phase11-environment.txt
++      - name: Capture all 28 verified benchmark runs
++        run: zig build bench-phase11 -Doptimize=ReleaseFast 2> phase11-current.csv
++      - name: Validate the complete CSV matrix
++        run: |
++          python3 - <<'PY'
++          import sys
++          from pathlib import Path
++          sys.path.insert(0, 'scripts')
++          from compare_phase11 import EXPECTED_KEYS, read_capture
++          path = Path('phase11-current.csv')
++          rows = read_capture(path)
++          assert set(rows) == EXPECTED_KEYS, (len(rows), sorted(EXPECTED_KEYS - set(rows)))
++          for (workload, mode), row in rows.items():
++              if mode.startswith('threaded-'):
++                  assert row['native_submissions'] > 0, (workload, mode)
++          print(f'Validated {len(rows)} benchmark rows.')
++          PY
++      - name: Upload benchmark results and environment
++        uses: actions/upload-artifact@v4
++        with:
++          name: zply-phase11-${{ matrix.os }}-${{ github.run_id }}
++          path: |
++            zply/phase11-current.csv
++            zply/phase11-environment.txt
++          if-no-files-found: error
+diff --git a/.github/workflows/zply-phase11.yml b/.github/workflows/zply-phase11.yml
+new file mode 100644
+index 0000000..2b0a708
+--- /dev/null
++++ b/.github/workflows/zply-phase11.yml
+@@ -0,0 +1,80 @@
++name: zply Phase 11 verification
++
++on:
++  push:
++    paths:
++      - 'zply/**'
++      - '.github/workflows/zply-phase11.yml'
++  pull_request:
++    paths:
++      - 'zply/**'
++      - '.github/workflows/zply-phase11.yml'
++  schedule:
++    - cron: '17 3 * * 1'
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++concurrency:
++  group: phase11-${{ github.workflow }}-${{ github.ref }}
++  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
++
++jobs:
++  correctness:
++    name: ${{ matrix.os }} / ${{ matrix.optimize }}
++    runs-on: ${{ matrix.os }}
++    strategy:
++      fail-fast: false
++      matrix:
++        os: [ubuntu-24.04, macos-15, macos-15-intel]
++        optimize: [Debug, ReleaseSafe, ReleaseFast]
++    defaults:
++      run:
++        working-directory: zply
++    steps:
++      - name: Check out source
++        uses: actions/checkout@v4
++      - name: Install Zig 0.17.1
++        uses: mlugg/setup-zig@v2
++        with:
++          version: 0.17.1
++      - name: Verify compiler and architecture
++        run: |
++          zig version
++          uname -a
++      - name: Run all unit and integration tests
++        run: zig build test -Doptimize=${{ matrix.optimize }}
++      - name: Run permanent regression corpus
++        run: zig build test-regression -Doptimize=${{ matrix.optimize }}
++      - name: Check source formatting and comparator
++        if: matrix.optimize == 'Debug'
++        run: |
++          zig fmt --check tests/phase11_regression_test.zig benchmarks/phase11_performance.zig
++          python3 scripts/test_compare_phase11.py
++
++  extended:
++    name: Extended fault, stress and fuzz checks
++    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
++    runs-on: ubuntu-24.04
++    defaults:
++      run:
++        working-directory: zply
++    steps:
++      - uses: actions/checkout@v4
++      - uses: mlugg/setup-zig@v2
++        with:
++          version: 0.17.1
++      - name: Fault and lifecycle validation
++        run: |
++          zig build test-faults -Doptimize=ReleaseSafe
++          zig build test-concurrency -Doptimize=ReleaseSafe
++          zig build test-ownership-memory -Doptimize=ReleaseSafe
++      - name: Large-stream stress tests
++        run: zig build test-stress -Doptimize=ReleaseSafe
++      - name: Bounded Phase 11 fuzz campaigns
++        run: |
++          zig build fuzz-phase11 --fuzz=1000
++          zig build fuzz-valid-ply --fuzz=1000
++          zig build fuzz-differential --fuzz=1000
++          zig build fuzz-metamorphic --fuzz=1000
+diff --git a/zply/.gitignore b/zply/.gitignore
+index b7eeaf1..186fd5c 100644
+--- a/zply/.gitignore
++++ b/zply/.gitignore
+@@ -4,3 +4,9 @@ zig-cache/
+ zig-out/
+ *.o
+ *.lib
++
++# Benchmark runs and Python test caches are generated locally.
++phase11-*.csv
++phase11-environment.txt
++__pycache__/
++*.py[cod]
+diff --git a/zply/scripts/__pycache__/compare_phase11.cpython-315.pyc b/zply/scripts/__pycache__/compare_phase11.cpython-315.pyc
+deleted file mode 100644
+index fd9bd82413aa3babb575cbaa2e68f53e6a6d33e1..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 10145
+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
+V{{53tH7ceF9&6TXmFHS@{|l%ezmos}
+

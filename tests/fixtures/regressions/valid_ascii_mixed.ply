@@ -1,0 +1,11 @@
+ply
+format ascii 1.0
+element face 2
+property list uchar int indices
+property float confidence
+element camera 1
+property double exposure
+end_header
+3 0 2 4 .5
+0 1.0
+2.0

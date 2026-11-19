@@ -1,0 +1,6 @@
+ply
+format ascii 1.0
+element item 1
+property uchar value
+end_header
+256
