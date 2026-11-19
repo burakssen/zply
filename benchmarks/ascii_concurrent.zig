@@ -15,7 +15,10 @@ fn create(a: std.mem.Allocator, count: usize, kind: Kind) !Spec {
         .face => try std.fmt.allocPrint(a, "ply\nformat ascii 1.0\nelement face {d}\nproperty list uchar int indices\nend_header\n", .{count}),
     };
     defer a.free(header);
-    const line = switch (kind) { .xyz => "1.25 -2.5 3.75\n", .face => "3 0 1 2\n" };
+    const line = switch (kind) {
+        .xyz => "1.25 -2.5 3.75\n",
+        .face => "3 0 1 2\n",
+    };
     const body_len = try std.math.mul(usize, count, line.len);
     const bytes = try a.alloc(u8, try std.math.add(usize, header.len, body_len));
     @memcpy(bytes[0..header.len], header);
@@ -75,7 +78,7 @@ pub fn main(init: std.process.Init) !void {
     var single: std.Io.Threaded = .init_single_threaded;
     var concurrent: std.Io.Threaded = .init(init.gpa, .{});
     defer concurrent.deinit();
-    std.debug.print("Phase 9 ASCII concurrent decoding: {d} warmups + {d} measured rounds\n", .{warmups, runs});
+    std.debug.print("Phase 9 ASCII concurrent decoding: {d} warmups + {d} measured rounds\n", .{ warmups, runs });
     inline for (.{ Kind.xyz, Kind.face }) |kind| {
         const spec = try create(init.gpa, 300_000, kind);
         defer init.gpa.free(spec.bytes);
@@ -100,10 +103,9 @@ pub fn main(init: std.process.Init) !void {
             std.mem.sortUnstable(i96, &times, {}, std.sort.asc(i96));
             const sec = @as(f64, @floatFromInt(times[runs / 2])) / 1e9;
             std.debug.print("  {s}: median={d:.3} ms {d:.2} Mrec/s {d:.3} GB/s batches={d} peak={d} accepted={d} inline={d} max_active={d}\n", .{
-                choice.name, sec * 1e3, @as(f64, @floatFromInt(spec.count)) / sec / 1e6,
-                @as(f64, @floatFromInt(spec.body_len)) / sec / 1e9,
-                last.batches, last.peak, last.execution.native_submissions,
-                last.execution.inline_decodes, last.execution.max_active_decodes,
+                choice.name,                                        sec * 1e3,                     @as(f64, @floatFromInt(spec.count)) / sec / 1e6,
+                @as(f64, @floatFromInt(spec.body_len)) / sec / 1e9, last.batches,                  last.peak,
+                last.execution.native_submissions,                  last.execution.inline_decodes, last.execution.max_active_decodes,
             });
         }
     }

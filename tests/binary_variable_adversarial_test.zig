@@ -96,8 +96,7 @@ test "Phase 10 random untrusted byte prefixes never produce unchecked record off
             const n = random.intRangeAtMost(usize, 0, bytes.len);
             const result = scan.scanRecord(&layouts[0], endian, bytes[0..n], limits, null) catch |err| {
                 switch (err) {
-                    error.NegativeListCount, error.CountOverflow, error.ListTooLarge,
-                    error.RecordTooLarge, error.SizeOverflow => {},
+                    error.NegativeListCount, error.CountOverflow, error.ListTooLarge, error.RecordTooLarge, error.SizeOverflow => {},
                     error.InvalidLayout => return error.UnexpectedInvalidLayout,
                 }
                 continue;

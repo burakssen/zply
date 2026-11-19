@@ -194,16 +194,26 @@ pub const DecodeTask = struct {
         const result: anyerror!void = if (injected) |err| err else switch (self.encoding) {
             .ascii => pool_mod.Pool.decodePreparedAsciiWithHooks(
                 self.target orelse return error.InvalidTaskState,
-                self.ascii_properties, self.input, self.ascii_boundaries,
-                self.ascii_token_limit, self.ascii_item_limit,
-                &self.cancel_requested, &self.ascii_failure,
-                self.test_hooks, self.sequence,
+                self.ascii_properties,
+                self.input,
+                self.ascii_boundaries,
+                self.ascii_token_limit,
+                self.ascii_item_limit,
+                &self.cancel_requested,
+                &self.ascii_failure,
+                self.test_hooks,
+                self.sequence,
             ),
             .binary_variable => pool_mod.Pool.decodePreparedBinaryVariableWithHooks(
                 self.target orelse return error.InvalidTaskState,
-                self.layout, self.endian, self.input,
-                self.binary_boundaries, self.binary_totals, &self.cancel_requested,
-                self.test_hooks, self.sequence,
+                self.layout,
+                self.endian,
+                self.input,
+                self.binary_boundaries,
+                self.binary_totals,
+                &self.cancel_requested,
+                self.test_hooks,
+                self.sequence,
             ),
             .binary => if (self.target) |dest|
                 pool_mod.Pool.decodePreparedWithHooks(dest, self.layout, self.endian, self.input, self.record_count, &self.cancel_requested, self.test_hooks, self.sequence)

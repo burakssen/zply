@@ -210,8 +210,7 @@ test "M8 checked-in regression corpus includes all encodings and an invalid sche
         try std.testing.expectEqual(@as(usize, 2), seen);
     }
     var invalid_reader: std.Io.Reader = .fixed(@embedFile("corpus/invalid_list_type.ply"));
-    try std.testing.expectError(error.InvalidListCountType,
-        Parser.init(std.testing.allocator, std.testing.io, &invalid_reader, .{}));
+    try std.testing.expectError(error.InvalidListCountType, Parser.init(std.testing.allocator, std.testing.io, &invalid_reader, .{}));
 }
 
 fn fuzzHeader(_: void, smith: *std.testing.Smith) !void {
@@ -328,12 +327,23 @@ fn fuzzMutated(_: void, smith: *std.testing.Smith) !void {
             try std.testing.expectEqual(@as(anyerror, err), reported.code.?);
             const generic: anyerror = err;
             switch (generic) {
-                error.InvalidNumber, error.IntegerOverflow, error.FloatOverflow,
-                error.MissingValue, error.UnexpectedValue, error.NegativeListCount,
-                error.ListTooLarge, error.RecordTooLarge, error.TokenTooLong,
-                error.InvalidAsciiRecord, error.InvalidLineEnding,
-                error.TruncatedBody, error.TruncatedRecord, error.TruncatedListCount,
-                error.TruncatedListPayload, error.TruncatedAsciiBody, error.InvalidListCount,
+                error.InvalidNumber,
+                error.IntegerOverflow,
+                error.FloatOverflow,
+                error.MissingValue,
+                error.UnexpectedValue,
+                error.NegativeListCount,
+                error.ListTooLarge,
+                error.RecordTooLarge,
+                error.TokenTooLong,
+                error.InvalidAsciiRecord,
+                error.InvalidLineEnding,
+                error.TruncatedBody,
+                error.TruncatedRecord,
+                error.TruncatedListCount,
+                error.TruncatedListPayload,
+                error.TruncatedAsciiBody,
+                error.InvalidListCount,
                 => return,
                 else => return error.UnexpectedMutatedParserFailure,
             }

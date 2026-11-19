@@ -436,7 +436,8 @@ pub const Parser = struct {
         }
         if (parser.raw_pool == null and parser.storage.header.encoding != .ascii and
             parser.producer.element_index < parser.storage.layouts.len and
-            parser.storage.layouts[parser.producer.element_index].fixed_record_size != null) {
+            parser.storage.layouts[parser.producer.element_index].fixed_record_size != null)
+        {
             const pool = parser.allocator.create(input.pool.RawBufferPool) catch |err| {
                 if (parser.memory_control.wrapper.budgetDenied()) return error.ResourceLimitExceeded;
                 return err;
@@ -730,10 +731,12 @@ pub const Parser = struct {
     fn admitBinaryVariablePrefix(parser: *Parser, count: usize) NextError!PendingTask {
         const stage = &parser.binary_stage;
         const full = stage.fill(
-            parser.allocator, parser.reader,
+            parser.allocator,
+            parser.reader,
             &parser.storage.layouts[parser.producer.element_index],
             @import("decode/binary.zig").endianFor(parser.storage.header.encoding) catch return error.UnsupportedEncoding,
-            parser.binaryLimits(), parser.options.chunk_size,
+            parser.binaryLimits(),
+            parser.options.chunk_size,
             parser.producer.next_record,
             parser.storage.header.elements[parser.producer.element_index].count - parser.producer.next_record,
         ) catch |err| return err;
@@ -847,8 +850,13 @@ pub const Parser = struct {
         while (true) {
             parser.memory_control.wrapper.clearFailure();
             const result = parser.binary_stage.fill(
-                parser.allocator, parser.reader, layout, endian, parser.binaryLimits(),
-                parser.options.chunk_size, parser.producer.next_record,
+                parser.allocator,
+                parser.reader,
+                layout,
+                endian,
+                parser.binaryLimits(),
+                parser.options.chunk_size,
+                parser.producer.next_record,
                 parser.storage.header.elements[idx].count - parser.producer.next_record,
             ) catch |err| {
                 const mapped = parser.binaryPressure(err);
@@ -931,7 +939,8 @@ pub const Parser = struct {
         const absolute_start: ?u64 = std.math.add(u64, parser.storage.header.body_offset, stage.body_offset) catch null;
         const record_off: ?u64 = if (f.record_index < stage.record_count and absolute_start != null)
             std.math.add(u64, absolute_start.?, @as(u64, @intCast(stage.offsets.items[f.record_index]))) catch null
-        else absolute_start;
+        else
+            absolute_start;
         parser.ascii_diagnostic = .{
             .code = err,
             .stage = errors_mod.Diagnostic.stageFor(err),
@@ -966,7 +975,8 @@ pub const Parser = struct {
         const element_index = parser.producer.element_index;
         const element = &parser.storage.header.elements[element_index];
         stage.begin(
-            element_index, parser.producer.next_record,
+            element_index,
+            parser.producer.next_record,
             // A budget failure can leave the line reader mid-record even
             // when no complete record is marked pending. The original line
             // start, not the advanced physical cursor, anchors diagnostics.

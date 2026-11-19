@@ -13,7 +13,14 @@ pub const max_items = 4;
 
 pub const Encoding = enum { ascii, binary_little_endian, binary_big_endian };
 pub const Scalar = enum {
-    i8, u8, i16, u16, i32, u32, f32, f64,
+    i8,
+    u8,
+    i16,
+    u16,
+    i32,
+    u32,
+    f32,
+    f64,
 
     fn width(self: Scalar) usize {
         return switch (self) {

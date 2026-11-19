@@ -22,7 +22,9 @@ const Input = struct {
         for (0..count) |i| @memcpy(bytes[h.len + i * line.len ..][0..line.len], line);
         return .{ .bytes = bytes, .body_size = body_len };
     }
-    fn deinit(self: Input, a: std.mem.Allocator) void { a.free(self.bytes); }
+    fn deinit(self: Input, a: std.mem.Allocator) void {
+        a.free(self.bytes);
+    }
 };
 
 const Sample = struct { ns: i96, records: usize, batches: usize, peak: usize, checksum: f64 };
@@ -71,7 +73,7 @@ pub fn main(init: std.process.Init) !void {
         std.mem.sortUnstable(i96, &samples, {}, std.sort.asc(i96));
         const sec = @as(f64, @floatFromInt(samples[rounds / 2])) / 1e9;
         std.debug.print("  {d} records: median={d:.3} ms, {d:.2} Mrec/s, {d:.2} GB/s, batches={d}, peak={d} bytes\n", .{
-            count, sec * 1e3, @as(f64, @floatFromInt(count)) / sec / 1e6,
+            count,                                                 sec * 1e3,    @as(f64, @floatFromInt(count)) / sec / 1e6,
             @as(f64, @floatFromInt(source.body_size)) / sec / 1e9, last.batches, last.peak,
         });
     }

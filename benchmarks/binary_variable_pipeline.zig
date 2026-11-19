@@ -23,7 +23,8 @@ const Spec = struct {
 
 fn make(a: std.mem.Allocator, kind: Kind, endian: std.builtin.Endian) !Spec {
     const enc = if (endian == .little) "binary_little_endian" else "binary_big_endian";
-    const header = try std.fmt.allocPrint(a,
+    const header = try std.fmt.allocPrint(
+        a,
         "ply\nformat {s} 1.0\nelement face {d}\nproperty list uchar int indices\nend_header\n",
         .{ enc, Count },
     );
@@ -61,9 +62,13 @@ fn make(a: std.mem.Allocator, kind: Kind, endian: std.builtin.Endian) !Spec {
     }
     std.debug.assert(cursor == bytes.len);
     return .{
-        .bytes = bytes, .header_len = header.len, .body_len = payload_size,
-        .record_count = Count, .item_count = total_items,
-        .checksum = checksum, .endian = endian,
+        .bytes = bytes,
+        .header_len = header.len,
+        .body_len = payload_size,
+        .record_count = Count,
+        .item_count = total_items,
+        .checksum = checksum,
+        .endian = endian,
     };
 }
 
@@ -84,11 +89,14 @@ fn measureScan(a: std.mem.Allocator, io: std.Io, spec: Spec) !Sample {
         internals.property.Property.list("indices", .u8, .i32),
     };
     const elements = [_]internals.element.Element{.{
-        .name = "face", .count = spec.record_count, .properties = &properties,
+        .name = "face",
+        .count = spec.record_count,
+        .properties = &properties,
     }};
     const header: internals.header.Header = .{
         .encoding = if (spec.endian == .little) .binary_little_endian else .binary_big_endian,
-        .version = .{ .major = 1, .minor = 0 }, .elements = &elements,
+        .version = .{ .major = 1, .minor = 0 },
+        .elements = &elements,
     };
     const layouts = try internals.layout.compileSchema(a, &header);
     defer {
@@ -110,11 +118,8 @@ fn measureScan(a: std.mem.Allocator, io: std.Io, spec: Spec) !Sample {
         items += record.total_list_items;
     }
     const end = std.Io.Clock.awake.now(io);
-    return .{ .nanoseconds = start.durationTo(end).nanoseconds,
-        .records = count, .items = items, .checksum = 0,
-        .copied_spans = scanner.copied_spans };
+    return .{ .nanoseconds = start.durationTo(end).nanoseconds, .records = count, .items = items, .checksum = 0, .copied_spans = scanner.copied_spans };
 }
-
 
 /// Isolate the cost of bounded record-aligned staging from typed column
 /// decoding, output reservation, native scheduling, and batch publication.
@@ -124,11 +129,14 @@ fn measureChunkAssembly(a: std.mem.Allocator, io: std.Io, spec: Spec) !Sample {
         internals.property.Property.list("indices", .u8, .i32),
     };
     const elements = [_]internals.element.Element{.{
-        .name = "face", .count = spec.record_count, .properties = &properties,
+        .name = "face",
+        .count = spec.record_count,
+        .properties = &properties,
     }};
     const header: internals.header.Header = .{
         .encoding = if (spec.endian == .little) .binary_little_endian else .binary_big_endian,
-        .version = .{ .major = 1, .minor = 0 }, .elements = &elements,
+        .version = .{ .major = 1, .minor = 0 },
+        .elements = &elements,
     };
     const layouts = try internals.layout.compileSchema(a, &header);
     defer {
@@ -149,8 +157,14 @@ fn measureChunkAssembly(a: std.mem.Allocator, io: std.Io, spec: Spec) !Sample {
     var staged_bytes: usize = 0;
     while (count < spec.record_count) {
         const chunk = (try builder.fill(
-            a, &reader, &layouts[0], spec.endian, limits,
-            256 * 1024, @intCast(count), @intCast(spec.record_count - count),
+            a,
+            &reader,
+            &layouts[0],
+            spec.endian,
+            limits,
+            256 * 1024,
+            @intCast(count),
+            @intCast(spec.record_count - count),
         )) orelse return error.UnexpectedEndOfInput;
         count += chunk.record_count;
         items += chunk.list_item_totals[0];
@@ -162,9 +176,7 @@ fn measureChunkAssembly(a: std.mem.Allocator, io: std.Io, spec: Spec) !Sample {
     if (staged_bytes != spec.body_len or
         builder.record_reader.completed_body_bytes != @as(u64, @intCast(spec.body_len)))
         return error.IncorrectOutput;
-    return .{ .nanoseconds = start.durationTo(end).nanoseconds,
-        .records = count, .items = items, .checksum = 0,
-        .batches = batches, .copied_spans = builder.record_reader.copied_spans };
+    return .{ .nanoseconds = start.durationTo(end).nanoseconds, .records = count, .items = items, .checksum = 0, .batches = batches, .copied_spans = builder.record_reader.copied_spans };
 }
 
 fn measurePipeline(a: std.mem.Allocator, io: std.Io, spec: Spec, ordered: bool) !Sample {
@@ -212,10 +224,7 @@ fn measurePipelineSized(
     const accepted = parser.executionStats().native_submissions;
     parser.deinit();
     const end = std.Io.Clock.awake.now(io);
-    return .{ .nanoseconds = start.durationTo(end).nanoseconds,
-        .records = records, .items = items, .checksum = sum,
-        .batches = batches, .peak = peak, .accepted = accepted,
-        .copied_spans = copied_spans, .batch_reductions = reductions };
+    return .{ .nanoseconds = start.durationTo(end).nanoseconds, .records = records, .items = items, .checksum = sum, .batches = batches, .peak = peak, .accepted = accepted, .copied_spans = copied_spans, .batch_reductions = reductions };
 }
 
 fn report(name: []const u8, io: std.Io, a: std.mem.Allocator, spec: Spec, mode: enum { scan, chunk, ordered, unordered }) !void {
@@ -245,10 +254,10 @@ fn report(name: []const u8, io: std.Io, a: std.mem.Allocator, spec: Spec, mode: 
     std.mem.sortUnstable(i96, &times, {}, std.sort.asc(i96));
     const seconds = @as(f64, @floatFromInt(times[rounds / 2])) / 1e9;
     std.debug.print("  {s}: median={d:.3} ms {d:.2} Mrec/s {d:.2} Mitems/s {d:.3} GB/s batches={d} peak={d} native={d} copied_spans={d} reductions={d}\n", .{
-        name, seconds * 1e3, @as(f64, @floatFromInt(spec.record_count)) / seconds / 1e6,
-        @as(f64, @floatFromInt(spec.item_count)) / seconds / 1e6,
-        @as(f64, @floatFromInt(spec.body_len)) / seconds / 1e9,
-        last.batches, last.peak, last.accepted, last.copied_spans, last.batch_reductions,
+        name,                                                     seconds * 1e3,                                          @as(f64, @floatFromInt(spec.record_count)) / seconds / 1e6,
+        @as(f64, @floatFromInt(spec.item_count)) / seconds / 1e6, @as(f64, @floatFromInt(spec.body_len)) / seconds / 1e9, last.batches,
+        last.peak,                                                last.accepted,                                          last.copied_spans,
+        last.batch_reductions,
     });
 }
 
@@ -305,12 +314,11 @@ pub fn runMatrix(init: std.process.Init) !void {
                         std.mem.sortUnstable(i96, &times, {}, std.sort.asc(i96));
                         const seconds = @as(f64, @floatFromInt(times[1])) / 1e9;
                         std.debug.print("  budget={d}MiB chunk={d}KiB {s}: median={d:.3}ms {d:.2}Mrec/s {d:.2}Mitems/s peak={d} batches={d} native={d} reductions={d}\n", .{
-                            budget / (1024 * 1024), chunk / 1024,
-                            if (ordered) @as([]const u8, "ordered") else "unordered",
-                            seconds * 1000,
-                            @as(f64, @floatFromInt(spec.record_count)) / seconds / 1e6,
-                            @as(f64, @floatFromInt(spec.item_count)) / seconds / 1e6,
-                            last.peak, last.batches, last.accepted, last.batch_reductions,
+                            budget / (1024 * 1024),                                     chunk / 1024,
+                            if (ordered) @as([]const u8, "ordered") else "unordered",   seconds * 1000,
+                            @as(f64, @floatFromInt(spec.record_count)) / seconds / 1e6, @as(f64, @floatFromInt(spec.item_count)) / seconds / 1e6,
+                            last.peak,                                                  last.batches,
+                            last.accepted,                                              last.batch_reductions,
                         });
                     }
                 }

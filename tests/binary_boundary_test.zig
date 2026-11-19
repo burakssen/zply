@@ -75,18 +75,32 @@ test "Phase 10 mixed scalar and two-list boundary scanning in both byte orders" 
     const little = [_]u8{
         0, 0, 128, 63, // f32 confidence = 1
         3, // u8 neighbor count
-        10, 0, 0, 0, 11, 0, 0, 0, 12, 0, 0, 0,
+        10,
+        0,
+        0,
+        0,
+        11,
+        0,
+        0,
+        0,
+        12,
+        0,
+        0,
+        0,
         0, 0, 0, 0, 0, 0, 0, 64, // f64 timestamp = 2
         2, 0, // u16 weights count
         0, 0, 128, 63, 0, 0, 0, 128, // float values
     };
     const big = [_]u8{
-        63, 128, 0, 0,
-        3,
-        0, 0, 0, 10, 0, 0, 0, 11, 0, 0, 0, 12,
-        64, 0, 0, 0, 0, 0, 0, 0,
-        0, 2,
-        63, 128, 0, 0, 128, 0, 0, 0,
+        63,  128, 0, 0,
+        3,   0,   0, 0,
+        10,  0,   0, 0,
+        11,  0,   0, 0,
+        12,  64,  0, 0,
+        0,   0,   0, 0,
+        0,   0,   2, 63,
+        128, 0,   0, 128,
+        0,   0,   0,
     };
     try std.testing.expectEqual(@as(usize, 35), little.len);
     try std.testing.expectEqual(little.len, big.len);
@@ -115,8 +129,8 @@ test "Phase 10 list boundaries distinguish triangle quad and empty list" {
     const layout = &compiled.layouts[0];
     const records = [_]u8{
         3, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0,
-        4, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0,
-        0,
+        4, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0,
+        3, 0, 0, 0, 0,
     };
     var offset: usize = 0;
     const widths = [_]usize{ 13, 17, 1 };
@@ -137,7 +151,8 @@ test "Phase 10 negative list count and oversize count fail before payload access
     try std.testing.expectError(error.NegativeListCount, scan.scanRecord(layout, .little, &.{ 0xff, 0xff }, limits, null));
     try std.testing.expectError(error.ListTooLarge, scan.scanRecord(layout, .big, &.{ 0, 129 }, limits, null));
     try std.testing.expectError(error.RecordTooLarge, scan.scanRecord(layout, .big, &.{ 0, 128 }, .{
-        .max_record_bytes = 1000, .max_list_items_per_record = 128,
+        .max_record_bytes = 1000,
+        .max_list_items_per_record = 128,
     }, null));
     try expectIncomplete(try scan.scanRecord(layout, .little, &.{ 0x02, 0x00 }, limits, null), 0, .list_items, 18);
 }

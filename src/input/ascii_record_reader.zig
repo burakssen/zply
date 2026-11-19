@@ -70,7 +70,6 @@ pub const Reader = struct {
     }
 };
 
-
 test "ASCII reader retries after allocator failures without losing consumed bytes" {
     const a = std.testing.allocator;
     var input_bytes: [516]u8 = undefined;

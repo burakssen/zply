@@ -102,7 +102,8 @@ fn virtualStream(base: *std.Io.Reader, writer: *std.Io.Writer, limit: std.Io.Lim
 
 fn runScale(count: usize, endian: std.builtin.Endian) !void {
     const encoding = if (endian == .little) "binary_little_endian" else "binary_big_endian";
-    const header = try std.fmt.allocPrint(std.testing.allocator,
+    const header = try std.fmt.allocPrint(
+        std.testing.allocator,
         "ply\nformat {s} 1.0\nelement face {d}\nproperty list uchar uint indices\nproperty float score\nend_header\n",
         .{ encoding, count },
     );

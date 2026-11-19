@@ -23,7 +23,7 @@ fn source(a: std.mem.Allocator, kind: Kind, count: usize, bad_record: ?usize) ![
         }
         const line = switch (kind) {
             .scalar, .crlf => try std.fmt.bufPrint(&buf, "{d} {d} {d}{s}", .{
-                i % 1000, i, (i * 2) % 10000,
+                i % 1000,                                           i, (i * 2) % 10000,
                 if (kind == .crlf and i % 2 == 0) "\r\n" else "\n",
             }),
             .lists => blk: {
@@ -32,7 +32,7 @@ fn source(a: std.mem.Allocator, kind: Kind, count: usize, bad_record: ?usize) ![
                 const head = try std.fmt.bufPrint(buf[cursor..], "{d} {d}", .{ i % 251, n });
                 cursor += head.len;
                 for (0..n) |j| {
-                    const item = try std.fmt.bufPrint(buf[cursor..], " {d}", .{ i * 10 + j });
+                    const item = try std.fmt.bufPrint(buf[cursor..], " {d}", .{i * 10 + j});
                     cursor += item.len;
                 }
                 const tail = try std.fmt.bufPrint(buf[cursor..], " {d}\n", .{i % 100});
@@ -216,13 +216,13 @@ test "Phase 9 multiple element transitions and zero-property records leave trail
     try std.testing.expectEqual(@as(u8, 'T'), try reader.takeByte());
 }
 
-
 // A malformed list count in the middle of a staged chunk must not discard
 // valid preceding records. Preflight splits at the bad record boundary.
 test "Phase 9 list preflight preserves the valid prefix before a negative count" {
     const a = std.testing.allocator;
     const count: usize = 260;
-    const header = try std.fmt.allocPrint(a,
+    const header = try std.fmt.allocPrint(
+        a,
         "ply\nformat ascii 1.0\nelement face {d}\n" ++
             "property list short int indices\nend_header\n",
         .{count},

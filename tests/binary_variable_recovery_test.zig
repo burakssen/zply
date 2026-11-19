@@ -39,10 +39,9 @@ fn freeLayouts(compiled: []Layout) void {
 
 // Three variable records: [10,11]/[7,8,9], []/[5], [12]/[].
 const body = [_]u8{
-    2, 10, 0, 0, 0, 11, 0, 0, 0, 0, 0, 128, 63, 3, 0, 7, 8, 9,
-    0, 0, 0, 0, 64, 1, 0, 5,
-    1, 12, 0, 0, 0, 0, 0, 64, 64, 0, 0,
-    0xed,
+    2, 10,   0, 0, 0,  11, 0, 0, 0, 0,  0, 128, 63, 3, 0, 7,  8,  9,
+    0, 0,    0, 0, 64, 1,  0, 5, 1, 12, 0, 0,   0,  0, 0, 64, 64, 0,
+    0, 0xed,
 };
 
 test "binary variable chunk builder survives allocation failure at each staging site" {
@@ -62,8 +61,7 @@ test "binary variable chunk builder survives allocation failure at each staging 
         while (next_record < 3) {
             var chunk: internal.binary_chunk_builder.Chunk = undefined;
             while (true) {
-                const result = builder.fill(failing.allocator(), &source, &compiled[0], .little, limits,
-                    24, @intCast(next_record), @intCast(3 - next_record)) catch |err| {
+                const result = builder.fill(failing.allocator(), &source, &compiled[0], .little, limits, 24, @intCast(next_record), @intCast(3 - next_record)) catch |err| {
                     try std.testing.expectEqual(error.OutOfMemory, err);
                     observed_failure = true;
                     // No rewind: a record may be only partially consumed,
@@ -99,7 +97,8 @@ test "binary variable chunk builder survives allocation failure at each staging 
 
 fn sourceFixture(allocator: std.mem.Allocator, count: usize, endian: std.builtin.Endian) ![]u8 {
     const encoding = if (endian == .little) "binary_little_endian" else "binary_big_endian";
-    const header = try std.fmt.allocPrint(allocator,
+    const header = try std.fmt.allocPrint(
+        allocator,
         "ply\nformat {s} 1.0\nelement face {d}\nproperty list uchar uint indices\nproperty float score\nend_header\n",
         .{ encoding, count },
     );

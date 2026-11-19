@@ -10,7 +10,9 @@ pub const Tokenizer = struct {
         return .{ .input = input, .max_token_bytes = max_token_bytes };
     }
 
-    fn whitespace(b: u8) bool { return b == ' ' or b == '\t'; }
+    fn whitespace(b: u8) bool {
+        return b == ' ' or b == '\t';
+    }
 
     /// Byte position of the next token (or the end of the record when
     /// the next required token is missing). Never consumes input.
@@ -20,7 +22,7 @@ pub const Tokenizer = struct {
         return at;
     }
 
-    pub fn next(self: *Tokenizer) error{TokenTooLong, InvalidAsciiRecord}!?[]const u8 {
+    pub fn next(self: *Tokenizer) error{ TokenTooLong, InvalidAsciiRecord }!?[]const u8 {
         while (self.position < self.input.len and whitespace(self.input[self.position])) self.position += 1;
         if (self.position == self.input.len) return null;
         const begin = self.position;

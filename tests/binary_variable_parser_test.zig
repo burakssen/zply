@@ -4,14 +4,14 @@ const std = @import("std");
 const z = @import("zply");
 
 const little = [_]u8{
-    2, 10, 0, 0, 0, 11, 0, 0, 0, 0, 0, 128, 63, 3, 0, 7, 8, 9,
-    0, 0, 0, 0, 64, 1, 0, 5,
-    1, 12, 0, 0, 0, 0, 0, 64, 64, 0, 0,
+    2, 10, 0, 0, 0,  11, 0, 0, 0, 0,  0, 128, 63, 3, 0, 7,  8,  9,
+    0, 0,  0, 0, 64, 1,  0, 5, 1, 12, 0, 0,   0,  0, 0, 64, 64, 0,
+    0,
 };
 const big = [_]u8{
-    2, 0, 0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0, 0, 3, 7, 8, 9,
-    0, 64, 0, 0, 0, 0, 1, 5,
-    1, 0, 0, 0, 12, 64, 64, 0, 0, 0, 0,
+    2, 0,  0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0,  0,  3,  7, 8, 9,
+    0, 64, 0, 0, 0,  0, 1, 5, 1,  0,  0,   0, 12, 64, 64, 0, 0, 0,
+    0,
 };
 
 fn input(allocator: std.mem.Allocator, endian: std.builtin.Endian) ![]u8 {
@@ -94,7 +94,8 @@ test "Phase 10 fixed-variable-fixed binary element transitions preserve record i
     @memcpy(bytes[header.len + before.len + little.len ..], &after);
     var reader: std.Io.Reader = .fixed(bytes);
     var parser = try z.Parser.init(std.testing.allocator, std.testing.io, &reader, .{
-        .chunk_size = 24, .memory_budget = 2 * 1024 * 1024,
+        .chunk_size = 24,
+        .memory_budget = 2 * 1024 * 1024,
     });
     defer parser.deinit();
     var seen_vertex = false;
@@ -136,7 +137,8 @@ test "Phase 10 public Parser reports terminal truncated binary list without publ
     const chopped = full[0 .. full.len - 7];
     var reader: std.Io.Reader = .fixed(chopped);
     var parser = try z.Parser.init(std.testing.allocator, std.testing.io, &reader, .{
-        .chunk_size = 24, .memory_budget = 2 * 1024 * 1024,
+        .chunk_size = 24,
+        .memory_budget = 2 * 1024 * 1024,
     });
     defer parser.deinit();
     var consumed: usize = 0;
@@ -195,7 +197,7 @@ test "Phase 10 binary-variable tasks use caller's native threaded executor" {
             try std.testing.expect(i < count and !seen[i]);
             seen[i] = true;
             try std.testing.expectEqualSlices(u32, &.{
-                @as(u32, @intCast(i)), @as(u32, @intCast(i + 1)),
+                @as(u32, @intCast(i)),     @as(u32, @intCast(i + 1)),
                 @as(u32, @intCast(i + 2)), @as(u32, @intCast(i + 3)),
             }, faces.row(row).?.u32);
         }

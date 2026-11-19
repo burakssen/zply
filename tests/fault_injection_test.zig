@@ -26,7 +26,7 @@ fn xyzFixture(a: std.mem.Allocator, chunk_count: usize) ![]u8 {
         const start = header.len + i * 12;
         const x: f32 = @floatFromInt(i);
         std.mem.writeInt(u32, bytes[start..][0..4], @bitCast(x), .little);
-        @memset(bytes[start + 4 ..][0..12 - 4], 0);
+        @memset(bytes[start + 4 ..][0 .. 12 - 4], 0);
     }
     return bytes;
 }
@@ -384,7 +384,6 @@ test "ordered binary futures also avoid the unordered completion queue" {
     try std.testing.expectEqual(@as(u64, chunks), sequence);
     try std.testing.expectEqual(@as(usize, 0), control.attempts.load(.acquire));
 }
-
 
 const PauseInsideAsciiList = struct {
     reached: std.atomic.Value(bool) = .init(false),

@@ -240,7 +240,7 @@ test "M10 targeted record mutations reject ASCII and both binary endian forms" {
 
 fn fuzzDifferential(_: void, smith: *std.testing.Smith) !void {
     const seed = smith.value(u64);
-    const enc: Encoding = @enumFromInt(smith.valueRangeAtMost(u8, 0, 2));
+    const enc: Encoding = @fromBackingInt(@intCast(smith.valueRangeAtMost(u8, 0, 2)));
     var doc = try Document.generate(seed, enc);
     const body_size = doc.len - doc.body_start - 4; // Excludes M9's TAIL.
     const mutation = smith.valueRangeAtMost(u8, 0, 5);

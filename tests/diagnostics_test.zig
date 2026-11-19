@@ -14,7 +14,11 @@ test "initDetailed preserves the exact error, header line and directive" {
     var diagnostic: ply.Diagnostic = .{ .category = .record };
 
     try std.testing.expectError(error.InvalidProperty, ply.Parser.initDetailed(
-        std.testing.allocator, std.testing.io, &reader, .{}, &diagnostic,
+        std.testing.allocator,
+        std.testing.io,
+        &reader,
+        .{},
+        &diagnostic,
     ));
     try std.testing.expect(diagnostic.code.? == error.InvalidProperty);
     try std.testing.expectEqual(ply.Diagnostic.Stage.header, diagnostic.stage);
@@ -32,8 +36,11 @@ test "initDetailed reports configuration before consuming any reader input" {
     var reader: std.Io.Reader = .fixed(bytes);
     var diagnostic: ply.Diagnostic = .{ .category = .record };
     try std.testing.expectError(error.InvalidConfiguration, ply.Parser.initDetailed(
-        std.testing.allocator, std.testing.io, &reader,
-        .{ .chunk_size = 0 }, &diagnostic,
+        std.testing.allocator,
+        std.testing.io,
+        &reader,
+        .{ .chunk_size = 0 },
+        &diagnostic,
     ));
     try std.testing.expectEqual(ply.Diagnostic.Category.configuration, diagnostic.category);
     try std.testing.expectEqual(ply.Diagnostic.Stage.configuration, diagnostic.stage);
@@ -80,7 +87,8 @@ test "lastDiagnostic preserves binary-list truncation location" {
     const bytes = header ++ "\x03\x00\x2A\x00\x00\x00";
     var reader: std.Io.Reader = .fixed(bytes);
     var parser = try ply.Parser.init(std.testing.allocator, std.testing.io, &reader, .{
-        .chunk_size = 64, .memory_budget = 2 * 1024 * 1024,
+        .chunk_size = 64,
+        .memory_budget = 2 * 1024 * 1024,
     });
     defer parser.deinit();
     try std.testing.expectError(error.TruncatedListPayload, parser.next());

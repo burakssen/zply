@@ -12,12 +12,25 @@ pub const max_list_items = 4;
 
 pub const Encoding = enum { ascii, binary_little_endian, binary_big_endian };
 pub const Scalar = enum {
-    i8, u8, i16, u16, i32, u32, f32, f64,
+    i8,
+    u8,
+    i16,
+    u16,
+    i32,
+    u32,
+    f32,
+    f64,
 
     pub fn name(self: Scalar) []const u8 {
         return switch (self) {
-            .i8 => "char", .u8 => "uchar", .i16 => "short", .u16 => "ushort",
-            .i32 => "int", .u32 => "uint", .f32 => "float", .f64 => "double",
+            .i8 => "char",
+            .u8 => "uchar",
+            .i16 => "short",
+            .u16 => "ushort",
+            .i32 => "int",
+            .u32 => "uint",
+            .f32 => "float",
+            .f64 => "double",
         };
     }
     pub fn width(self: Scalar) usize {
@@ -48,7 +61,9 @@ pub const Element = struct {
     fn list(self: *Element, count_type: Scalar, item_type: Scalar) void {
         std.debug.assert(self.property_count < max_properties);
         self.properties[self.property_count] = .{
-            .ty = item_type, .is_list = true, .count_type = count_type,
+            .ty = item_type,
+            .is_list = true,
+            .count_type = count_type,
         };
         self.property_count += 1;
     }
@@ -135,7 +150,7 @@ pub const Document = struct {
                     if (i == self.element_count - 1 and elem.count == 0) elem.count = 1;
                     const n = random.intRangeAtMost(usize, 0, max_properties);
                     for (0..n) |_| {
-                        const ty: Scalar = @enumFromInt(random.intRangeAtMost(u8, 0, 7));
+                        const ty: Scalar = @fromBackingInt(@intCast(random.intRangeAtMost(u8, 0, 7)));
                         if (random.boolean()) {
                             const count_types = [_]Scalar{ .i8, .u8, .i16, .u16, .i32, .u32 };
                             elem.list(count_types[random.intRangeAtMost(usize, 0, count_types.len - 1)], ty);
@@ -157,14 +172,21 @@ pub const Document = struct {
             // Exactly representable decimal values across all three PLY
             // encodings, including negative zero and fractional values.
             .f32 => switch (random.intRangeAtMost(u8, 0, 6)) {
-                0 => 0x00000000, 1 => 0x80000000, 2 => 0x3f000000,
-                3 => 0xbfc00000, 4 => 0x3f800000, 5 => 0x42c80000,
+                0 => 0x00000000,
+                1 => 0x80000000,
+                2 => 0x3f000000,
+                3 => 0xbfc00000,
+                4 => 0x3f800000,
+                5 => 0x42c80000,
                 else => 0x4b800000,
             },
             .f64 => switch (random.intRangeAtMost(u8, 0, 6)) {
-                0 => 0x0000000000000000, 1 => 0x8000000000000000,
-                2 => 0x3fe0000000000000, 3 => 0xbff8000000000000,
-                4 => 0x3ff0000000000000, 5 => 0x4059000000000000,
+                0 => 0x0000000000000000,
+                1 => 0x8000000000000000,
+                2 => 0x3fe0000000000000,
+                3 => 0xbff8000000000000,
+                4 => 0x3ff0000000000000,
+                5 => 0x4059000000000000,
                 else => 0x4170000000000000,
             },
         };

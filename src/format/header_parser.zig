@@ -188,14 +188,7 @@ fn parseHeaderImpl(
 
         var tokens = Tokens{ .line = line };
         const keyword = tokens.next() orelse continue; // blank line: skip
-        current_directive = if (std.mem.eql(u8, keyword, "ply")) .magic
-            else if (std.mem.eql(u8, keyword, "format")) .format
-            else if (std.mem.eql(u8, keyword, "element")) .element
-            else if (std.mem.eql(u8, keyword, "property")) .property
-            else if (std.mem.eql(u8, keyword, "comment")) .comment
-            else if (std.mem.eql(u8, keyword, "obj_info")) .obj_info
-            else if (std.mem.eql(u8, keyword, "end_header")) .end_header
-            else null;
+        current_directive = if (std.mem.eql(u8, keyword, "ply")) .magic else if (std.mem.eql(u8, keyword, "format")) .format else if (std.mem.eql(u8, keyword, "element")) .element else if (std.mem.eql(u8, keyword, "property")) .property else if (std.mem.eql(u8, keyword, "comment")) .comment else if (std.mem.eql(u8, keyword, "obj_info")) .obj_info else if (std.mem.eql(u8, keyword, "end_header")) .end_header else null;
 
         switch (state) {
             .expect_magic => if (!std.mem.eql(u8, keyword, "ply")) return error.InvalidMagic,

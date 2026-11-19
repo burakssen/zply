@@ -50,10 +50,8 @@ pub fn main(init: std.process.Init) !void {
     if (ins == 0 or fns == 0 or tns == 0) return error.InvalidBenchmarkInterval;
     std.debug.print("Phase 8 numeric conversion benchmark: {d} iterations, checksum={d}:{d:.6}:{d}\n" ++
         "  integers: {d:.2} Mvalues/s\n  floating: {d:.2} Mvalues/s\n  tokenizer: {d:.2} Mtokens/s\n", .{
-            repeats, isum, fsum, tokens,
-            (2.0 * @as(f64, @floatFromInt(repeats))) / (@as(f64, @floatFromInt(ins)) / 1e9) / 1e6,
-            (2.0 * @as(f64, @floatFromInt(repeats))) / (@as(f64, @floatFromInt(fns)) / 1e9) / 1e6,
-            @as(f64, @floatFromInt(tokens)) / (@as(f64, @floatFromInt(tns)) / 1e9) / 1e6,
-        });
+        repeats,                                                                               isum,                                                                                  fsum,                                                                         tokens,
+        (2.0 * @as(f64, @floatFromInt(repeats))) / (@as(f64, @floatFromInt(ins)) / 1e9) / 1e6, (2.0 * @as(f64, @floatFromInt(repeats))) / (@as(f64, @floatFromInt(fns)) / 1e9) / 1e6, @as(f64, @floatFromInt(tokens)) / (@as(f64, @floatFromInt(tns)) / 1e9) / 1e6,
+    });
     _ = init;
 }

@@ -5,8 +5,13 @@ const tokenizer = @import("tokenizer.zig");
 const number = @import("number.zig");
 
 pub const DecodeError = number.NumberError || error{
-    MissingValue, UnexpectedValue, TokenTooLong, InvalidAsciiRecord,
-    NegativeListCount, InvalidListCount, ListTooLarge,
+    MissingValue,
+    UnexpectedValue,
+    TokenTooLong,
+    InvalidAsciiRecord,
+    NegativeListCount,
+    InvalidListCount,
+    ListTooLarge,
 };
 
 pub fn validate(props: []const property.Property, line: []const u8, token_limit: usize, list_limit: usize) DecodeError!void {
@@ -32,22 +37,22 @@ pub fn validateWithOffsets(
     for (props, 0..) |prop, index| {
         if (failed_property) |out| out.* = index;
         switch (prop.kind) {
-        .scalar => |type_tag| {
-            if (failed_token_offset) |out| out.* = t.nextTokenStart();
-            const token = (try t.next()) orelse return error.MissingValue;
-            _ = try number.scalar(type_tag, token);
-        },
-        .list => |li| {
-            if (failed_token_offset) |out| out.* = t.nextTokenStart();
-            const count_token = (try t.next()) orelse return error.MissingValue;
-            const count = try number.listCount(li.count_type, count_token);
-            if (count > list_limit) return error.ListTooLarge;
-            for (0..count) |_| {
+            .scalar => |type_tag| {
                 if (failed_token_offset) |out| out.* = t.nextTokenStart();
                 const token = (try t.next()) orelse return error.MissingValue;
-                _ = try number.scalar(li.item_type, token);
-            }
-        },
+                _ = try number.scalar(type_tag, token);
+            },
+            .list => |li| {
+                if (failed_token_offset) |out| out.* = t.nextTokenStart();
+                const count_token = (try t.next()) orelse return error.MissingValue;
+                const count = try number.listCount(li.count_type, count_token);
+                if (count > list_limit) return error.ListTooLarge;
+                for (0..count) |_| {
+                    if (failed_token_offset) |out| out.* = t.nextTokenStart();
+                    const token = (try t.next()) orelse return error.MissingValue;
+                    _ = try number.scalar(li.item_type, token);
+                }
+            },
         }
     }
     if (failed_property) |out| out.* = null;

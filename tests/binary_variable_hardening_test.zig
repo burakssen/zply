@@ -17,7 +17,8 @@ const Fixture = struct {
 
 fn makeFixture(allocator: std.mem.Allocator, count: usize, endian: std.builtin.Endian) !Fixture {
     const encoding = if (endian == .little) "binary_little_endian" else "binary_big_endian";
-    const header = try std.fmt.allocPrint(allocator,
+    const header = try std.fmt.allocPrint(
+        allocator,
         "ply\nformat {s} 1.0\nelement face {d}\nproperty list uchar uint indices\nproperty float score\nproperty list ushort uchar flags\nend_header\n",
         .{ encoding, count },
     );

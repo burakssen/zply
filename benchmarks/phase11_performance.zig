@@ -150,7 +150,8 @@ fn createInput(allocator: std.mem.Allocator, kind: Kind) !Input {
         else => "property float x\nproperty float y\nproperty float z\n",
     };
     const element = if (kind.isPolygon()) "face" else "vertex";
-    const header = try std.fmt.allocPrint(allocator,
+    const header = try std.fmt.allocPrint(
+        allocator,
         "ply\nformat {s} 1.0\nelement {s} {d}\n{s}end_header\n",
         .{ format, element, record_count, properties },
     );
@@ -358,14 +359,11 @@ fn report(allocator: std.mem.Allocator, single: *std.Io.Threaded, threaded: *std
         const median = sorted[sorted.len / 2];
         const sec = @as(f64, @floatFromInt(median)) / 1e9;
         std.debug.print("{s},{s},{d},{d},{d},{d},{d},{d},{d},{d},{d},{d},{d:.1},{d:.6},{d:.1},{d},{d},{d},{d},{d},{x},{x}\n", .{
-            @tagName(input.kind), mode.label(), record_count, input.body_bytes, input.list_items,
-            mode.chunk(), memory_budget, warmup_rounds, measured_rounds,
-            median, percentile(sorted, 5), percentile(sorted, 95),
-            @as(f64, @floatFromInt(record_count)) / sec,
-            @as(f64, @floatFromInt(input.body_bytes)) / sec / 1e9,
-            @as(f64, @floatFromInt(input.list_items)) / sec,
-            peaks[index], last[index].batches, last[index].native_submissions,
-            last[index].inline_decodes, last[index].max_active, input.expected.sum, input.expected.xor_value,
+            @tagName(input.kind),  mode.label(),             record_count,                                input.body_bytes,                                      input.list_items,
+            mode.chunk(),          memory_budget,            warmup_rounds,                               measured_rounds,                                       median,
+            percentile(sorted, 5), percentile(sorted, 95),   @as(f64, @floatFromInt(record_count)) / sec, @as(f64, @floatFromInt(input.body_bytes)) / sec / 1e9, @as(f64, @floatFromInt(input.list_items)) / sec,
+            peaks[index],          last[index].batches,      last[index].native_submissions,              last[index].inline_decodes,                            last[index].max_active,
+            input.expected.sum,    input.expected.xor_value,
         });
     }
 }

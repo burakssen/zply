@@ -82,7 +82,8 @@ test "M12 valid stream survives one-byte and irregular non-seekable reads" {
             var source = FaultReader.init(bytes, .{ .fragments = pattern });
             const reader = source.reader();
             var parser = try Parser.init(std.testing.allocator, std.testing.io, reader, .{
-                .chunk_size = 16, .memory_budget = 2 * 1024 * 1024,
+                .chunk_size = 16,
+                .memory_budget = 2 * 1024 * 1024,
             });
             defer parser.deinit();
             var seen: usize = 0;
@@ -128,7 +129,8 @@ test "M12 injected body ReadFailed and EOF remain distinct at structural boundar
                 const cut = fixture.header.len + relative_cut;
                 var source = FaultReader.init(bytes, .{ .fragments = &.{ 1, 3, 2, 7 }, .cutoff = cut, .fault = fault });
                 var parser = try Parser.init(std.testing.allocator, std.testing.io, source.reader(), .{
-                    .chunk_size = 64, .memory_budget = 2 * 1024 * 1024,
+                    .chunk_size = 64,
+                    .memory_budget = 2 * 1024 * 1024,
                 });
                 defer parser.deinit();
                 var seen: usize = 0;
@@ -186,7 +188,8 @@ test "M12 four-byte binary list counts and fixed-width scalars fail at every mis
                     .fault = fault,
                 });
                 var parser = try Parser.init(std.testing.allocator, std.testing.io, source.reader(), .{
-                    .chunk_size = 64, .memory_budget = 2 * 1024 * 1024,
+                    .chunk_size = 64,
+                    .memory_budget = 2 * 1024 * 1024,
                 });
                 defer parser.deinit();
                 const outcome = parser.next();
@@ -267,7 +270,8 @@ test "M12 body allocation failure sweep preserves ownership and never publishes 
             var failing = std.testing.FailingAllocator.init(std.testing.allocator, .{});
             var reader: std.Io.Reader = .fixed(bytes);
             var parser = try Parser.init(failing.allocator(), std.testing.io, &reader, .{
-                .chunk_size = 64, .memory_budget = 2 * 1024 * 1024,
+                .chunk_size = 64,
+                .memory_budget = 2 * 1024 * 1024,
             });
             var seen: usize = 0;
             var failed_once = false;

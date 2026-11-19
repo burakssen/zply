@@ -43,7 +43,11 @@ test "initDetailed uses the same recovery classification for malformed headers" 
     var reader: std.Io.Reader = .fixed("not_ply\n");
     var diagnostic: D = .{ .category = .record };
     try std.testing.expectError(error.InvalidMagic, ply.Parser.initDetailed(
-        std.testing.allocator, std.testing.io, &reader, .{}, &diagnostic,
+        std.testing.allocator,
+        std.testing.io,
+        &reader,
+        .{},
+        &diagnostic,
     ));
     try std.testing.expectEqual(D.Category.header, diagnostic.category);
     try std.testing.expectEqual(D.Stage.header, diagnostic.stage);

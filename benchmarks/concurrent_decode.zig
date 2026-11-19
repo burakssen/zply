@@ -52,8 +52,8 @@ const Mode = enum(u8) {
     }
 };
 const modes = [_]Mode{
-    .single_ordered, .ordered_2, .ordered_4, .ordered_8,
-    .unordered_2, .unordered_4, .unordered_8,
+    .single_ordered, .ordered_2,   .ordered_4,   .ordered_8,
+    .unordered_2,    .unordered_4, .unordered_8,
 };
 
 // Two commutative accumulators, with different weights for x/y/z.
@@ -261,13 +261,11 @@ fn benchSize(
                 "{d:.2} Mrec/s {d:.2} GB/s batches={d} parser_peak={d} " ++
                 "accepted={d} rejected={d} inline={d} max_inflight={d} max_active={d} digest={x}:{x}\n",
             .{
-                mode.name(),                  ms(median),                                     ms(percentile(sorted, 5)),
-                ms(percentile(sorted, 95)),   @as(f64, @floatFromInt(count)) / seconds / 1e6, @as(f64, @floatFromInt(input.body_size)) / seconds / 1e9,
-                last[index].batches,          max_peaks[index],
-                last[index].execution.native_submissions, last[index].execution.rejected_submissions,
-                last[index].execution.inline_decodes, last[index].execution.max_inflight,
-                last[index].execution.max_active_decodes,
-                last[index].digest.sum, last[index].digest.xor_value,
+                mode.name(),                                ms(median),                                     ms(percentile(sorted, 5)),
+                ms(percentile(sorted, 95)),                 @as(f64, @floatFromInt(count)) / seconds / 1e6, @as(f64, @floatFromInt(input.body_size)) / seconds / 1e9,
+                last[index].batches,                        max_peaks[index],                               last[index].execution.native_submissions,
+                last[index].execution.rejected_submissions, last[index].execution.inline_decodes,           last[index].execution.max_inflight,
+                last[index].execution.max_active_decodes,   last[index].digest.sum,                         last[index].digest.xor_value,
             },
         );
     }

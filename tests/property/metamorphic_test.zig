@@ -246,7 +246,8 @@ test "M11 retained batch stays unchanged while subsequent batches are decoded" {
 
 fn makeLarge(allocator: std.mem.Allocator, count: usize, endian: std.builtin.Endian) ![]u8 {
     const format = if (endian == .little) "binary_little_endian" else "binary_big_endian";
-    const header = try std.fmt.allocPrint(allocator,
+    const header = try std.fmt.allocPrint(
+        allocator,
         "ply\nformat {s} 1.0\nelement sample {d}\n" ++
             "property float x\nproperty list uchar int ids\nproperty ushort label\nend_header\n",
         .{ format, count },
@@ -395,9 +396,11 @@ test "M11 truncated final binary record has consistent category after native rea
 
 fn fuzzMetamorphic(_: void, smith: *std.testing.Smith) !void {
     const seed = smith.value(u64);
-    const encoding: Encoding = @enumFromInt(smith.valueRangeAtMost(u8, 0, 2));
+    const encoding: Encoding = @fromBackingInt(@intCast(smith.valueRangeAtMost(u8, 0, 2)));
     const chunk: usize = switch (smith.valueRangeAtMost(u8, 0, 2)) {
-        0 => 64, 1 => 128, else => 512,
+        0 => 64,
+        1 => 128,
+        else => 512,
     };
     const doc = try Document.generate(seed, encoding);
     _ = try exercise(&doc, std.testing.io, .fixed, 512, 2 * 1024 * 1024, true);

@@ -28,14 +28,14 @@ fn spec(kind: Kind) Spec {
             .properties = "property double x\nproperty double y\nproperty double z\n",
             .rows = .{
                 "0.0 -0.0 1.25\n", "1.23456789012345 2.5e-8 -3.5\n",
-                "3 4 5\n", "-12.75 .5 9e3\n",
+                "3 4 5\n",         "-12.75 .5 9e3\n",
             },
         },
         .xyzrgb => .{
             .name = "vertex",
             .properties = "property float x\nproperty double z\nproperty uchar red\nproperty ushort intensity\nproperty short classification\n",
             .rows = .{
-                "1.5 -2.75 255 65000 -2\n", "-0.0 123.125 0 0 32767\n",
+                "1.5 -2.75 255 65000 -2\n",   "-0.0 123.125 0 0 32767\n",
                 ".25 -1e-3 128 256 -32768\n", "10.0 0.0 10 65535 42\n",
             },
         },
@@ -55,7 +55,7 @@ fn spec(kind: Kind) Spec {
             .name = "face",
             .properties = "property uchar material\nproperty list uchar int indices\n",
             .rows = .{
-                "10 3 1 2 3\n", "20 3 100 101 102\n",
+                "10 3 1 2 3\n",  "20 3 100 101 102\n",
                 "30 3 -1 0 1\n", "40 3 200000 200001 200002\n",
             },
         },
@@ -215,7 +215,7 @@ fn verifyBatch(kind: Kind, batch: *const z.Batch) !void {
                 const p = (@as(usize, @intCast(info.first_record)) + i) % 4;
                 const expected: [4][3]f64 = .{
                     .{ 0, -0.0, 1.25 }, .{ 1.23456789012345, 2.5e-8, -3.5 },
-                    .{ 3, 4, 5 }, .{ -12.75, 0.5, 9000 },
+                    .{ 3, 4, 5 },       .{ -12.75, 0.5, 9000 },
                 };
                 try expectScalar(f64, x[i], expected[p][0]);
                 try expectScalar(f64, y[i], expected[p][1]);
@@ -278,7 +278,7 @@ fn verifyBatch(kind: Kind, batch: *const z.Batch) !void {
             try std.testing.expectEqualSlices(usize, &.{ 0, 3 }, indices.offsets);
             const values = indices.row(0).?.i32;
             const expected: [4][3]i32 = .{
-                .{ 1, 2, 3 }, .{ 100, 101, 102 },
+                .{ 1, 2, 3 },  .{ 100, 101, 102 },
                 .{ -1, 0, 1 }, .{ 200000, 200001, 200002 },
             };
             try std.testing.expectEqualSlices(i32, &expected[p], values);
@@ -333,9 +333,7 @@ pub fn run(a: std.mem.Allocator, io: std.Io, kind: Kind, record_count: usize) !v
     // The generated index and its negation use canonical PLY u32/i32 types.
     if (kind == .sequence) try std.testing.expect(record_count <= @as(usize, std.math.maxInt(i32)));
     const s = spec(kind);
-    const header = try a.print(
-        "ply\nformat ascii 1.0\nelement {s} {d}\n{s}end_header\n",
-        .{ s.name, record_count, s.properties });
+    const header = try a.print("ply\nformat ascii 1.0\nelement {s} {d}\n{s}end_header\n", .{ s.name, record_count, s.properties });
     defer a.free(header);
 
     var synthetic = VirtualReader{

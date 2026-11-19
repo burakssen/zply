@@ -78,8 +78,7 @@ pub const HeaderError = error{
 
 /// Every error the parser can report, with the phase that introduces it.
 pub const Error = HeaderError || @import("input/producer.zig").ProducerError ||
-    error{ InvalidRecordBoundary, CountOverflow, TruncatedRecord, TruncatedListCount,
-        TruncatedListPayload, InvalidReaderState, InvalidBuilderState, NegativeListCount } ||
+    error{ InvalidRecordBoundary, CountOverflow, TruncatedRecord, TruncatedListCount, TruncatedListPayload, InvalidReaderState, InvalidBuilderState, NegativeListCount } ||
     @import("input/ascii_record_reader.zig").RecordError ||
     @import("decode/ascii/record.zig").DecodeError || error{
     MemoryPressure,
@@ -212,20 +211,12 @@ pub const Diagnostic = struct {
     pub fn categoryFor(err: anyerror) Category {
         return switch (err) {
             error.InvalidConfiguration => .configuration,
-            error.InvalidMagic, error.MissingFormat, error.InvalidDirective,
-            error.InvalidElement, error.InvalidProperty, error.DuplicateFormat,
-            error.DuplicateElement, error.DuplicateProperty, error.InvalidName,
-            error.InvalidLineEnding, error.UnexpectedEndOfHeader,
-            error.NumericOverflow => .header,
+            error.InvalidMagic, error.MissingFormat, error.InvalidDirective, error.InvalidElement, error.InvalidProperty, error.DuplicateFormat, error.DuplicateElement, error.DuplicateProperty, error.InvalidName, error.InvalidLineEnding, error.UnexpectedEndOfHeader, error.NumericOverflow => .header,
             error.UnsupportedEncoding => .encoding,
             error.InvalidVersion, error.UnsupportedVersion => .version,
             error.InvalidScalarType, error.InvalidListCountType => .scalar_type,
-            error.TruncatedInput, error.TruncatedBody, error.TruncatedRecord,
-            error.TruncatedListCount, error.TruncatedListPayload,
-            error.TruncatedAsciiBody => .truncation,
-            error.HeaderTooLarge, error.HeaderLineTooLong,
-            error.ResourceLimitExceeded, error.RecordTooLarge, error.ListTooLarge,
-            error.TokenTooLong, error.MemoryBudgetTooSmall => .resource_limit,
+            error.TruncatedInput, error.TruncatedBody, error.TruncatedRecord, error.TruncatedListCount, error.TruncatedListPayload, error.TruncatedAsciiBody => .truncation,
+            error.HeaderTooLarge, error.HeaderLineTooLong, error.ResourceLimitExceeded, error.RecordTooLarge, error.ListTooLarge, error.TokenTooLong, error.MemoryBudgetTooSmall => .resource_limit,
             error.OutOfMemory, error.MemoryPressure, error.BatchCapacityUnavailable => .memory,
             error.ReadFailed => .reader,
             error.ConcurrentFailure, error.InvalidProducerState => .execution,
@@ -236,21 +227,12 @@ pub const Diagnostic = struct {
     pub fn stageFor(err: anyerror) Stage {
         return switch (err) {
             error.InvalidConfiguration => .configuration,
-            error.InvalidMagic, error.MissingFormat, error.InvalidDirective,
-            error.InvalidElement, error.InvalidProperty, error.DuplicateFormat,
-            error.DuplicateElement, error.DuplicateProperty, error.InvalidName,
-            error.InvalidLineEnding, error.UnexpectedEndOfHeader,
-            error.UnsupportedEncoding, error.InvalidVersion, error.UnsupportedVersion,
-            error.HeaderTooLarge, error.HeaderLineTooLong,
-            error.InvalidScalarType, error.InvalidListCountType,
-            error.NumericOverflow => .header,
+            error.InvalidMagic, error.MissingFormat, error.InvalidDirective, error.InvalidElement, error.InvalidProperty, error.DuplicateFormat, error.DuplicateElement, error.DuplicateProperty, error.InvalidName, error.InvalidLineEnding, error.UnexpectedEndOfHeader, error.UnsupportedEncoding, error.InvalidVersion, error.UnsupportedVersion, error.HeaderTooLarge, error.HeaderLineTooLong, error.InvalidScalarType, error.InvalidListCountType, error.NumericOverflow => .header,
             error.InvalidLayout => .schema,
             error.InvalidOutputCapacity, error.InvalidColumnType => .preflight,
-            error.OutOfMemory, error.MemoryPressure, error.BatchCapacityUnavailable,
-            error.ResourceLimitExceeded => .memory,
+            error.OutOfMemory, error.MemoryPressure, error.BatchCapacityUnavailable, error.ResourceLimitExceeded => .memory,
             error.ConcurrentFailure, error.InvalidProducerState => .scheduling,
-            error.InvalidNumber, error.IntegerOverflow, error.FloatOverflow,
-            error.InvalidAsciiRecord => .decode,
+            error.InvalidNumber, error.IntegerOverflow, error.FloatOverflow, error.InvalidAsciiRecord => .decode,
             else => .input,
         };
     }

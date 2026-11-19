@@ -161,7 +161,10 @@ const Slot = struct {
                 owned[i] = try Owned.allocate(a, t, n);
             } else {
                 const property = (kinds orelse return error.InvalidLayout)[i];
-                const list = switch (property.kind) { .list => |v| v, else => return error.InvalidLayout };
+                const list = switch (property.kind) {
+                    .list => |v| v,
+                    else => return error.InvalidLayout,
+                };
                 owned[i] = if (list_counts) |counts| try Owned.allocate(a, list.item_type, counts[i]) else Owned.empty(list.item_type);
                 initialized += 1;
                 lists[i] = try a.alloc(usize, n + 1);
@@ -497,8 +500,16 @@ pub const Pool = struct {
         failure: *ascii_preflight.Failure,
     ) !void {
         return decodePreparedAsciiWithHooks(
-            output, props, bytes, boundaries, token_limit, item_limit,
-            cancel_flag, failure, null, 0,
+            output,
+            props,
+            bytes,
+            boundaries,
+            token_limit,
+            item_limit,
+            cancel_flag,
+            failure,
+            null,
+            0,
         );
     }
 
@@ -726,8 +737,15 @@ pub const Pool = struct {
         cancel_flag: ?*const std.atomic.Value(bool),
     ) !void {
         return decodePreparedBinaryVariableWithHooks(
-            output, layout, endian, bytes, offsets, list_totals,
-            cancel_flag, null, 0,
+            output,
+            layout,
+            endian,
+            bytes,
+            offsets,
+            list_totals,
+            cancel_flag,
+            null,
+            0,
         );
     }
 
@@ -1008,7 +1026,6 @@ test "preflight rejects invalid input and output before modifying columns" {
     try std.testing.expectError(error.InvalidLayout, pool.preflight(id, &layout, 4, 1));
     try std.testing.expectEqual(@as(u32, 0xfeedbeef), pool.slots[id].owned[0].u32[0]);
 }
-
 
 test "idle output reclamation never invalidates leased batches" {
     const props = [_]layout_mod.PropertyLayout{.{

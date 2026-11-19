@@ -120,7 +120,12 @@ pub const Builder = struct {
             if (self.record_count > 0 and self.bytes.items.len >= preferred_bytes) break;
             if (!self.pending) {
                 _ = self.record_reader.readRecordWithCounts(
-                    allocator, source, layout, endian, limits, self.counts.items,
+                    allocator,
+                    source,
+                    layout,
+                    endian,
+                    limits,
+                    self.counts.items,
                 ) catch |err| {
                     if (self.record_count > 0) {
                         if (err != error.OutOfMemory) self.terminal_error = err;
@@ -135,7 +140,7 @@ pub const Builder = struct {
             const record = self.record_reader.scratch.items;
             if (self.record_count > 0 and
                 (self.bytes.items.len >= preferred_bytes or
-                record.len > preferred_bytes - self.bytes.items.len)) break;
+                    record.len > preferred_bytes - self.bytes.items.len)) break;
             self.appendPending(allocator, layout) catch |err| {
                 if (err == error.OutOfMemory and self.record_count > 0) return self.finish();
                 return err;

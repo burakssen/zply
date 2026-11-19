@@ -372,7 +372,8 @@ pub fn build(b: *std.Build) void {
     const concurrent_step = b.step("bench-concurrent", "Run native Io concurrent decode benchmark");
     concurrent_step.dependOn(&concurrent_run.step);
     const ascii_parallel_mod = b.createModule(.{
-        .target = target, .optimize = optimize,
+        .target = target,
+        .optimize = optimize,
         .root_source_file = b.path("benchmarks/ascii_concurrent.zig"),
     });
     ascii_parallel_mod.addImport("zply", zply_mod);
@@ -382,14 +383,16 @@ pub fn build(b: *std.Build) void {
     ascii_parallel_step.dependOn(&ascii_parallel_run.step);
 
     const binary_variable_bench_mod = b.createModule(.{
-        .target = target, .optimize = optimize,
+        .target = target,
+        .optimize = optimize,
         .root_source_file = b.path("benchmarks/binary_variable_pipeline.zig"),
     });
     // The combined structural/Parser benchmark must use a single module
     // tree: both zply and zply_internals own files such as errors.zig.
     binary_variable_bench_mod.addImport("zply_internals", internals_mod);
     const binary_variable_bench_exe = b.addExecutable(.{
-        .name = "binary_variable_pipeline_bench", .root_module = binary_variable_bench_mod,
+        .name = "binary_variable_pipeline_bench",
+        .root_module = binary_variable_bench_mod,
     });
     const binary_variable_bench_run = b.addRunArtifact(binary_variable_bench_exe);
     const binary_variable_bench_step = b.step("bench-binary-variable", "Benchmark structural scanning and end-to-end binary variable lists");
@@ -398,19 +401,22 @@ pub fn build(b: *std.Build) void {
     // Opt-in Phase 10 performance matrix: fixed fixtures, varied chunk size,
     // budget and native Io delivery mode. Kept separate from the quick bench.
     const binary_matrix_mod = b.createModule(.{
-        .target = target, .optimize = optimize,
+        .target = target,
+        .optimize = optimize,
         .root_source_file = b.path("benchmarks/binary_variable_matrix.zig"),
     });
     binary_matrix_mod.addImport("zply_internals", internals_mod);
     const binary_matrix_exe = b.addExecutable(.{
-        .name = "binary_variable_matrix_bench", .root_module = binary_matrix_mod,
+        .name = "binary_variable_matrix_bench",
+        .root_module = binary_matrix_mod,
     });
     const binary_matrix_run = b.addRunArtifact(binary_matrix_exe);
     const binary_matrix_step = b.step("bench-binary-variable-matrix", "Compare binary-list chunk sizes, budgets and native delivery modes");
     binary_matrix_step.dependOn(&binary_matrix_run.step);
 
     const ascii_mod = b.createModule(.{
-        .target = target, .optimize = optimize,
+        .target = target,
+        .optimize = optimize,
         .root_source_file = b.path("benchmarks/ascii_streaming.zig"),
     });
     ascii_mod.addImport("zply", zply_mod);
@@ -420,7 +426,8 @@ pub fn build(b: *std.Build) void {
     ascii_step.dependOn(&ascii_run.step);
 
     const ascii_numbers_mod = b.createModule(.{
-        .target = target, .optimize = optimize,
+        .target = target,
+        .optimize = optimize,
         .root_source_file = b.path("benchmarks/ascii_numbers.zig"),
     });
     ascii_numbers_mod.addImport("zply_internals", internals_mod);

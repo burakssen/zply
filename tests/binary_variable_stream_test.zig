@@ -37,22 +37,33 @@ test "Phase 10 variable reader handles fragmented scalar count payload and secon
 
     const little = [_]u8{
         0, 0, 128, 63, // 1.0f
-        3, 0, // u16 count
-        10, 0, 0, 0, 11, 0, 0, 0, 12, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 64, // f64 scalar after list
+        3,  0, // u16 count
+        10, 0,
+        0,  0,
+        11, 0,
+        0,  0,
+        12, 0,
+        0,  0,
+        0, 0, 0,   0,  0, 0, 0, 64, // f64 scalar after list
         0, 0, 128, 63,
         0, 0, // empty second list
-        0, 0, 0, 0, 0, 0, 0, 64,
+        0, 0,
+        0, 0,
+        0, 0,
+        0, 64,
         0xaa, 0xbb, // must remain untouched
     };
     const big = [_]u8{
-        63, 128, 0, 0,
-        0, 3,
-        0, 0, 0, 10, 0, 0, 0, 11, 0, 0, 0, 12,
-        64, 0, 0, 0, 0, 0, 0, 0,
-        63, 128, 0, 0,
-        0, 0,
-        64, 0, 0, 0, 0, 0, 0, 0,
+        63,   128,  0,  0,
+        0,    3,    0,  0,
+        0,    10,   0,  0,
+        0,    11,   0,  0,
+        0,    12,   64, 0,
+        0,    0,    0,  0,
+        0,    0,    63, 128,
+        0,    0,    0,  0,
+        64,   0,    0,  0,
+        0,    0,    0,  0,
         0xaa, 0xbb,
     };
     try std.testing.expectEqual(@as(usize, 42), little.len);
@@ -95,9 +106,15 @@ test "Phase 10 variable reader classifies truncated list counts payload and foll
     const layouts = try compile(&props);
     defer freeLayouts(layouts);
     const record = [_]u8{
-        2, 0, // count (2 items)
-        10, 0, 0, 0, 20, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 64,
+        2,  0, // count (2 items)
+        10, 0,
+        0,  0,
+        20, 0,
+        0,  0,
+        0,  0,
+        0,  0,
+        0,  0,
+        0,  64,
     };
     for (0..record.len) |prefix| {
         var source: std.Io.Reader = .fixed(record[0..prefix]);
@@ -183,7 +200,6 @@ test "Phase 10 oversized counts are rejected before reading any payload" {
     try std.testing.expectEqual(@as(u8, 0xaa), try source.takeByte());
 }
 
-
 test "Phase 10 variable reader distinguishes source failure from truncation" {
     const props = [_]Property{Property.list("items", .u16, .i32)};
     const layouts = try compile(&props);
@@ -260,7 +276,11 @@ test "Phase 10 bulk staging tracks the exact truncated prefix through fragmented
         var reader: stream.Reader = .{};
         defer reader.deinit(std.testing.allocator);
         try std.testing.expectError(error.TruncatedListPayload, reader.readRecord(
-            std.testing.allocator, source.reader(), &layouts[0], .little, generous,
+            std.testing.allocator,
+            source.reader(),
+            &layouts[0],
+            .little,
+            generous,
         ));
         try std.testing.expect(reader.failed);
         try std.testing.expectEqual(@as(u64, @intCast(prefix)), reader.body_bytes_consumed);

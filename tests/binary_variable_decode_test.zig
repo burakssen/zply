@@ -29,14 +29,14 @@ const props = [_]Property{
     Property.list("weights", .u16, .u8),
 };
 const little = [_]u8{
-    2, 10, 0, 0, 0, 11, 0, 0, 0, 0, 0, 128, 63, 3, 0, 7, 8, 9,
-    0, 0, 0, 0, 64, 1, 0, 5,
-    1, 12, 0, 0, 0, 0, 0, 64, 64, 0, 0,
+    2, 10, 0, 0, 0,  11, 0, 0, 0, 0,  0, 128, 63, 3, 0, 7,  8,  9,
+    0, 0,  0, 0, 64, 1,  0, 5, 1, 12, 0, 0,   0,  0, 0, 64, 64, 0,
+    0,
 };
 const big = [_]u8{
-    2, 0, 0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0, 0, 3, 7, 8, 9,
-    0, 64, 0, 0, 0, 0, 1, 5,
-    1, 0, 0, 0, 12, 64, 64, 0, 0, 0, 0,
+    2, 0,  0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0,  0,  3,  7, 8, 9,
+    0, 64, 0, 0, 0,  0, 1, 5, 1,  0,  0,   0, 12, 64, 64, 0, 0, 0,
+    0,
 };
 
 const limits: internals.binary_boundary.Limits = .{
@@ -63,8 +63,10 @@ test "Phase 10 binary output preflight and typed decoding preserve mixed lists i
             const id = try pool.acquireBinaryVariableSized(&layouts[0], &props, chunk.record_count, chunk.list_item_totals);
             try Pool.decodePreparedBinaryVariable(pool.target(id), &layouts[0], endian, chunk.bytes, chunk.offsets, chunk.list_item_totals, null);
             var batch = pool.publish(id, .{
-                .element_index = 0, .first_record = next_record,
-                .record_count = chunk.record_count, .sequence = next_record,
+                .element_index = 0,
+                .first_record = next_record,
+                .record_count = chunk.record_count,
+                .sequence = next_record,
             });
             {
                 defer batch.release();
@@ -76,10 +78,14 @@ test "Phase 10 binary output preflight and typed decoding preserve mixed lists i
                 for (0..chunk.record_count) |r| {
                     const global = @as(usize, @intCast(next_record)) + r;
                     const expected_neighbors: []const i32 = switch (global) {
-                        0 => &.{ 10, 11 }, 1 => &.{}, else => &.{12},
+                        0 => &.{ 10, 11 },
+                        1 => &.{},
+                        else => &.{12},
                     };
                     const expected_weights: []const u8 = switch (global) {
-                        0 => &.{ 7, 8, 9 }, 1 => &.{5}, else => &.{},
+                        0 => &.{ 7, 8, 9 },
+                        1 => &.{5},
+                        else => &.{},
                     };
                     try std.testing.expectEqualSlices(i32, expected_neighbors, neighbors.row(r).?.i32);
                     try std.testing.expectEqualSlices(u8, expected_weights, weights.row(r).?.u8);
@@ -100,8 +106,11 @@ test "Phase 10 binary preflight rejects malformed boundaries and inconsistent sc
     const layouts = try compile(&props, 3);
     defer freeLayouts(layouts);
     const chunk: chunks.Chunk = .{
-        .element_index = 0, .first_record = 0, .record_count = 3,
-        .first_body_byte_offset = 0, .bytes = &little,
+        .element_index = 0,
+        .first_record = 0,
+        .record_count = 3,
+        .first_body_byte_offset = 0,
+        .bytes = &little,
         .offsets = &.{ 0, 18, 26, 37 },
         .list_item_totals = &.{ 3, 0, 4 },
     };
@@ -124,26 +133,38 @@ test "Phase 10 binary output decoder rejects insufficient capacity and cooperati
     defer pool.cancel(id);
     const boundaries = [_]usize{ 0, 18, 26, 37 };
     try std.testing.expectError(error.InvalidOutputCapacity, Pool.decodePreparedBinaryVariable(
-        pool.target(id), &layouts[0], .little, &little, &boundaries, &.{ 2, 0, 4 }, null,
+        pool.target(id),
+        &layouts[0],
+        .little,
+        &little,
+        &boundaries,
+        &.{ 2, 0, 4 },
+        null,
     ));
     const cancelled = std.atomic.Value(bool).init(true);
     try std.testing.expectError(error.Cancelled, Pool.decodePreparedBinaryVariable(
-        pool.target(id), &layouts[0], .little, &little, &boundaries, &.{ 3, 0, 4 }, &cancelled,
+        pool.target(id),
+        &layouts[0],
+        .little,
+        &little,
+        &boundaries,
+        &.{ 3, 0, 4 },
+        &cancelled,
     ));
 }
 
 test "Phase 10 binary list item decoder preserves all eight scalar types and IEEE-754 bits" {
     const all = [_]Property{
-        Property.list("i8", .u8, .i8), Property.list("u8", .u8, .u8),
+        Property.list("i8", .u8, .i8),   Property.list("u8", .u8, .u8),
         Property.list("i16", .u8, .i16), Property.list("u16", .u8, .u16),
         Property.list("i32", .u8, .i32), Property.list("u32", .u8, .u32),
         Property.list("f32", .u8, .f32), Property.list("f64", .u8, .f64),
     };
     const record = [_]u8{
-        1, 0x80, 1, 0xff, 1, 0xff, 0x7f, 1, 0x34, 0x12,
-        1, 0xfe, 0xff, 0xff, 0xff, 1, 0x78, 0x56, 0x34, 0x12,
-        1, 0, 0, 0, 0x80,
-        1, 1, 0, 0, 0, 0, 0, 0xf8, 0x7f,
+        1, 0x80, 1,    0xff, 1,    0xff, 0x7f, 1,    0x34, 0x12,
+        1, 0xfe, 0xff, 0xff, 0xff, 1,    0x78, 0x56, 0x34, 0x12,
+        1, 0,    0,    0,    0x80, 1,    1,    0,    0,    0,
+        0, 0,    0xf8, 0x7f,
     };
     const layouts = try compile(&all, 1);
     defer freeLayouts(layouts);

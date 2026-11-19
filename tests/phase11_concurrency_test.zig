@@ -222,7 +222,9 @@ test "M13 read-ahead truncation drains admitted native tasks before terminal err
         .submission_rejected = ReadAhead.submissionRejected,
     };
     var parser = try Parser.init(std.testing.allocator, io_impl.io(), &reader, .{
-        .chunk_size = chunk_size, .memory_budget = 8 * 1024 * 1024, .preserve_order = true,
+        .chunk_size = chunk_size,
+        .memory_budget = 8 * 1024 * 1024,
+        .preserve_order = true,
     });
     defer parser.deinit();
     parser.test_hooks = &hooks;
@@ -267,10 +269,17 @@ test "M13 cancellation while a native binary task is decoding prevents partial p
     var control = DecodeGate{};
     const hooks: Hooks = .{ .context = &control, .checkpoint = DecodeGate.atRecord };
     var task: internal.execution.DecodeTask = .{
-        .sequence = 0, .element_index = 0, .first_record = 0,
-        .record_count = 16384, .input = data, .layout = &storage.layouts[0],
-        .endian = .little, .pool = pool, .slot_id = slot,
-        .target = pool.target(slot), .test_hooks = &hooks,
+        .sequence = 0,
+        .element_index = 0,
+        .first_record = 0,
+        .record_count = 16384,
+        .input = data,
+        .layout = &storage.layouts[0],
+        .endian = .little,
+        .pool = pool,
+        .slot_id = slot,
+        .target = pool.target(slot),
+        .test_hooks = &hooks,
     };
     var executor: std.Io.Threaded = .init(std.testing.allocator, .{ .concurrent_limit = .limited(4) });
     defer executor.deinit();
@@ -324,7 +333,8 @@ fn exerciseShutdown(ordered: bool) !void {
         .submission_rejected = ShutdownGate.submissionRejected,
     };
     var parser = try Parser.init(std.testing.allocator, io_impl.io(), &reader, .{
-        .chunk_size = chunk_size, .memory_budget = 8 * 1024 * 1024,
+        .chunk_size = chunk_size,
+        .memory_budget = 8 * 1024 * 1024,
         .preserve_order = ordered,
     });
     parser.test_hooks = &hooks;
@@ -384,11 +394,20 @@ test "M13 native binary variable-list cancellation joins before reclaiming parti
     var control = ListGate{};
     const hooks: Hooks = .{ .context = &control, .list_item_checkpoint = ListGate.atItem };
     var task: internal.execution.DecodeTask = .{
-        .sequence = 0, .element_index = 0, .first_record = 0,
-        .record_count = 1, .encoding = .binary_variable,
-        .input = data, .binary_boundaries = &offsets, .binary_totals = &totals,
-        .layout = layout, .endian = .big, .pool = pool, .slot_id = slot,
-        .target = pool.target(slot), .test_hooks = &hooks,
+        .sequence = 0,
+        .element_index = 0,
+        .first_record = 0,
+        .record_count = 1,
+        .encoding = .binary_variable,
+        .input = data,
+        .binary_boundaries = &offsets,
+        .binary_totals = &totals,
+        .layout = layout,
+        .endian = .big,
+        .pool = pool,
+        .slot_id = slot,
+        .target = pool.target(slot),
+        .test_hooks = &hooks,
     };
     var executor: std.Io.Threaded = .init(std.testing.allocator, .{ .concurrent_limit = .limited(4) });
     defer executor.deinit();

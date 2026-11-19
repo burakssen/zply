@@ -20,14 +20,14 @@ const props = [_]Property{
 // Records: ([10, 11], 1.0, [7, 8, 9]), ([], 2.0, [5]),
 //          ([12], 3.0, []). No alignment bytes between properties.
 const little = [_]u8{
-    2, 10, 0, 0, 0, 11, 0, 0, 0, 0, 0, 128, 63, 3, 0, 7, 8, 9,
-    0, 0, 0, 0, 64, 1, 0, 5,
-    1, 12, 0, 0, 0, 0, 0, 64, 64, 0, 0,
+    2, 10, 0, 0, 0,  11, 0, 0, 0, 0,  0, 128, 63, 3, 0, 7,  8,  9,
+    0, 0,  0, 0, 64, 1,  0, 5, 1, 12, 0, 0,   0,  0, 0, 64, 64, 0,
+    0,
 };
 const big = [_]u8{
-    2, 0, 0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0, 0, 3, 7, 8, 9,
-    0, 64, 0, 0, 0, 0, 1, 5,
-    1, 0, 0, 0, 12, 64, 64, 0, 0, 0, 0,
+    2, 0,  0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0,  0,  3,  7, 8, 9,
+    0, 64, 0, 0, 0,  0, 1, 5, 1,  0,  0,   0, 12, 64, 64, 0, 0, 0,
+    0,
 };
 const boundaries = [_]usize{ 0, 18, 26, 37 };
 const totals = [_]usize{ 3, 0, 4 };
@@ -68,9 +68,13 @@ test "M6 both endian mixed-list records have exact boundaries, totals and publis
         try std.testing.expectEqualSlices(usize, &totals, &scanned_totals);
 
         const chunk: Chunk = .{
-            .element_index = 0, .first_record = 0, .record_count = 3,
-            .first_body_byte_offset = 0, .bytes = bytes,
-            .offsets = &boundaries, .list_item_totals = &totals,
+            .element_index = 0,
+            .first_record = 0,
+            .record_count = 3,
+            .first_body_byte_offset = 0,
+            .bytes = bytes,
+            .offsets = &boundaries,
+            .list_item_totals = &totals,
         };
         const plan = try preflight.plan(chunk, &layouts[0]);
         try std.testing.expectEqual(@as(usize, 37), plan.raw_bytes);
@@ -114,7 +118,13 @@ test "M6 invalid later list target does not mutate earlier list offset during pr
     var invalid_target = target;
     invalid_target.list_offsets = &invalid_entries;
     try std.testing.expectError(error.InvalidOutputCapacity, Pool.decodePreparedBinaryVariable(
-        invalid_target, &layouts[0], .little, &little, &boundaries, &totals, null,
+        invalid_target,
+        &layouts[0],
+        .little,
+        &little,
+        &boundaries,
+        &totals,
+        null,
     ));
     try std.testing.expectEqual(@as(usize, 777), first_offsets[0]);
     try std.testing.expectEqual(@as(usize, 888), last_offsets[0]);
@@ -129,9 +139,13 @@ test "M6 preflight rejects overlapping, decreasing, and out-of-range record boun
     const layouts = try layoutsFor(&props);
     defer freeLayouts(layouts);
     const base: Chunk = .{
-        .element_index = 0, .first_record = 0, .record_count = 3,
-        .first_body_byte_offset = 0, .bytes = &little,
-        .offsets = &boundaries, .list_item_totals = &totals,
+        .element_index = 0,
+        .first_record = 0,
+        .record_count = 3,
+        .first_body_byte_offset = 0,
+        .bytes = &little,
+        .offsets = &boundaries,
+        .list_item_totals = &totals,
     };
     const cases = [_][]const usize{
         &.{ 0, 18, 18, 37 }, // zero-width record
@@ -158,16 +172,28 @@ test "M6 signed list counts reject negative values and unsigned counts honor con
         var signed_bytes: [2]u8 = undefined;
         std.mem.writeInt(i16, &signed_bytes, -1, endian);
         try std.testing.expectError(error.NegativeListCount, scan.scanRecord(
-            &signed_layouts[0], endian, &signed_bytes, limits, null,
+            &signed_layouts[0],
+            endian,
+            &signed_bytes,
+            limits,
+            null,
         ));
         var unsigned_bytes: [4]u8 = undefined;
         std.mem.writeInt(u32, &unsigned_bytes, 129, endian);
         try std.testing.expectError(error.ListTooLarge, scan.scanRecord(
-            &unsigned_layouts[0], endian, &unsigned_bytes, limits, null,
+            &unsigned_layouts[0],
+            endian,
+            &unsigned_bytes,
+            limits,
+            null,
         ));
         std.mem.writeInt(u32, &unsigned_bytes, 128, endian);
         try std.testing.expectError(error.RecordTooLarge, scan.scanRecord(
-            &unsigned_layouts[0], endian, &unsigned_bytes, limits, null,
+            &unsigned_layouts[0],
+            endian,
+            &unsigned_bytes,
+            limits,
+            null,
         ));
     }
 }

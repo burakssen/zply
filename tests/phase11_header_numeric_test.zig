@@ -21,12 +21,12 @@ fn rejectHeader(source: []const u8, options: Options, expected: anyerror) !void 
 test "M5 indented comment and obj_info preserve the exact payload" {
     var storage = try header(
         "ply\n" ++
-        "format ascii 1.0\n" ++
-        "  comment  alpha  beta\n" ++
-        "\tobj_info\t Dataset  A\n" ++
-        " \tcomment\n" ++
-        "comment tail\n" ++
-        "end_header\n",
+            "format ascii 1.0\n" ++
+            "  comment  alpha  beta\n" ++
+            "\tobj_info\t Dataset  A\n" ++
+            " \tcomment\n" ++
+            "comment tail\n" ++
+            "end_header\n",
         .{},
     );
     defer storage.deinit();

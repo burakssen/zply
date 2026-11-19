@@ -174,7 +174,6 @@ test "global batch sequence and element-local offsets survive schema changes" {
     try std.testing.expectEqual(@as(u64, 5), sequence);
 }
 
-
 test "3 million XYZ records retain exact-once delivery under native concurrency" {
     // End-to-end stress test, not merely a decoding microbenchmark.
     const count = 3_000_000;

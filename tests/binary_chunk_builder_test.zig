@@ -35,18 +35,18 @@ const limits: internals.binary_boundary.Limits = .{
 
 const little = [_]u8{
     // r0: neighbors [10,11], confidence 1.0f, weights [7,8,9]
-    2, 10, 0, 0, 0, 11, 0, 0, 0, 0, 0, 128, 63, 3, 0, 7, 8, 9,
+    2, 10, 0, 0, 0,  11, 0, 0, 0, 0,  0, 128, 63, 3, 0, 7,  8,  9,
     // r1: empty neighbors, confidence 2.0f, one weight
-    0, 0, 0, 0, 64, 1, 0, 5,
+    0, 0,  0, 0, 64, 1,  0, 5,
     // r2: neighbors [12], confidence 3.0f, no weights
-    1, 12, 0, 0, 0, 0, 0, 64, 64, 0, 0,
+    1, 12, 0, 0,   0,  0, 0, 64, 64, 0,
+    0,
     0xfd, // trailing data must remain unread
 };
 const big = [_]u8{
-    2, 0, 0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0, 0, 3, 7, 8, 9,
-    0, 64, 0, 0, 0, 0, 1, 5,
-    1, 0, 0, 0, 12, 64, 64, 0, 0, 0, 0,
-    0xfd,
+    2, 0,    0, 0, 10, 0, 0, 0, 11, 63, 128, 0, 0,  0,  3,  7, 8, 9,
+    0, 64,   0, 0, 0,  0, 1, 5, 1,  0,  0,   0, 12, 64, 64, 0, 0, 0,
+    0, 0xfd,
 };
 
 test "Phase 10 binary chunks split on records and preserve per-property list totals" {
@@ -153,7 +153,6 @@ test "Phase 10 binary chunks reject a changed layout while retaining a pending r
     try std.testing.expectEqualSlices(u8, little[18..37], recovered.bytes);
 }
 
-
 test "Phase 10 binary chunk byte offsets cross variable element boundaries" {
     const first_props = [_]Property{Property.list("indices", .u8, .u8)};
     const second_props = [_]Property{
@@ -173,7 +172,7 @@ test "Phase 10 binary chunk byte offsets cross variable element boundaries" {
     defer freeLayouts(layouts);
     const body = [_]u8{
         2, 6, 7, // element 0: list of two bytes
-        0, 0, 128, 63, 1, 0, 8, // element 1: scalar then one list item
+        0,    0, 128, 63, 1, 0, 8, // element 1: scalar then one list item
         0xee,
     };
     var source: std.Io.Reader = .fixed(&body);
@@ -183,7 +182,7 @@ test "Phase 10 binary chunk byte offsets cross variable element boundaries" {
     const face = (try builder.fill(std.testing.allocator, &source, &layouts[0], .little, limits, 2, 0, 1)).?;
     try std.testing.expectEqual(@as(usize, 3), face.bytes.len);
     try std.testing.expectEqual(@as(u64, 0), face.first_body_byte_offset);
-    try std.testing.expectEqualSlices(usize, &.{ 2 }, face.list_item_totals);
+    try std.testing.expectEqualSlices(usize, &.{2}, face.list_item_totals);
     builder.consume();
 
     const custom = (try builder.fill(std.testing.allocator, &source, &layouts[1], .little, limits, 2, 0, 1)).?;
@@ -195,7 +194,6 @@ test "Phase 10 binary chunk byte offsets cross variable element boundaries" {
     builder.consume();
     try std.testing.expectEqual(@as(u8, 0xee), try source.takeByte());
 }
-
 
 test "Phase 10 chunk offsets can start after externally consumed fixed-width body bytes" {
     const layouts = try compile(&props);

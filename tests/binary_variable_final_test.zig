@@ -46,10 +46,14 @@ const Oracle = union(enum) {
 /// In particular, this oracle does not call `scanRecord` or decodeListCount.
 fn reference(bytes: []const u8, endian: std.builtin.Endian) Oracle {
     if (bytes.len < 4) return .{ .incomplete = .{
-        .property_index = 0, .stage = .scalar, .required_total = 4,
+        .property_index = 0,
+        .stage = .scalar,
+        .required_total = 4,
     } };
     if (bytes.len < 6) return .{ .incomplete = .{
-        .property_index = 1, .stage = .list_count, .required_total = 6,
+        .property_index = 1,
+        .stage = .list_count,
+        .required_total = 6,
     } };
     const first_count: usize = if (endian == .little)
         @as(usize, bytes[4]) | (@as(usize, bytes[5]) << 8)
@@ -61,13 +65,17 @@ fn reference(bytes: []const u8, endian: std.builtin.Endian) Oracle {
     if (second_count_at > limits.max_record_bytes)
         return .{ .rejected = error.RecordTooLarge };
     if (bytes.len < second_count_at) return .{ .incomplete = .{
-        .property_index = 1, .stage = .list_items, .required_total = second_count_at,
+        .property_index = 1,
+        .stage = .list_items,
+        .required_total = second_count_at,
     } };
     const second_count_end = second_count_at + 1;
     if (second_count_end > limits.max_record_bytes)
         return .{ .rejected = error.RecordTooLarge };
     if (bytes.len < second_count_end) return .{ .incomplete = .{
-        .property_index = 2, .stage = .list_count, .required_total = second_count_end,
+        .property_index = 2,
+        .stage = .list_count,
+        .required_total = second_count_end,
     } };
     const second_count: usize = bytes[second_count_at];
     if (second_count > limits.max_list_items_per_record)
@@ -76,15 +84,20 @@ fn reference(bytes: []const u8, endian: std.builtin.Endian) Oracle {
     if (stamp_at > limits.max_record_bytes)
         return .{ .rejected = error.RecordTooLarge };
     if (bytes.len < stamp_at) return .{ .incomplete = .{
-        .property_index = 2, .stage = .list_items, .required_total = stamp_at,
+        .property_index = 2,
+        .stage = .list_items,
+        .required_total = stamp_at,
     } };
     const end = stamp_at + 8;
     if (end > limits.max_record_bytes) return .{ .rejected = error.RecordTooLarge };
     if (bytes.len < end) return .{ .incomplete = .{
-        .property_index = 3, .stage = .scalar, .required_total = end,
+        .property_index = 3,
+        .stage = .scalar,
+        .required_total = end,
     } };
     return .{ .complete = .{
-        .byte_length = end, .items = first_count + second_count,
+        .byte_length = end,
+        .items = first_count + second_count,
         .counts = .{ 0, first_count, second_count, 0 },
     } };
 }
@@ -222,10 +235,19 @@ test "Phase 10 binary decoder cancels inside a large list without publishing par
     // batch after reclaiming the cancelled, partially written destination.
     const replacement = try pool.acquireBinaryVariableSized(&layouts[0], &props, 1, &totals);
     try Pool.decodePreparedBinaryVariable(
-        pool.target(replacement), &layouts[0], .big, raw, &offsets, &totals, null,
+        pool.target(replacement),
+        &layouts[0],
+        .big,
+        raw,
+        &offsets,
+        &totals,
+        null,
     );
     var batch = pool.publish(replacement, .{
-        .element_index = 0, .first_record = 0, .record_count = 1, .sequence = 18,
+        .element_index = 0,
+        .first_record = 0,
+        .record_count = 1,
+        .sequence = 18,
     });
     defer batch.release();
     const list_column = try batch.listColumn(0);

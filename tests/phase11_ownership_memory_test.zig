@@ -155,7 +155,7 @@ const list_header = "ply\nformat binary_little_endian 1.0\n" ++
     "element camera 1\nproperty double value\nend_header\n";
 const list_body = [_]u8{
     // Face 0: [5,6], tag 11.
-    2, 5, 0, 0, 0, 6, 0, 0, 0, 11,
+    2, 5,  0, 0, 0, 6, 0, 0, 0,    11,
     // Face 1: [], tag 12.
     0, 12,
     // Camera: f64 1.0.
@@ -166,7 +166,8 @@ test "M14 list offsets and typed columns remain stable across element transition
     var meter: Meter = .{};
     var reader: std.Io.Reader = .fixed(list_header ++ list_body);
     var parser = try Parser.init(meter.allocator(), std.testing.io, &reader, .{
-        .chunk_size = 10, .memory_budget = 128 * 1024,
+        .chunk_size = 10,
+        .memory_budget = 128 * 1024,
     });
     defer {
         parser.deinit();
@@ -232,7 +233,8 @@ test "M14 independent backing allocation agrees with parser accounting across bu
             var meter: Meter = .{};
             var reader: std.Io.Reader = .fixed(source);
             var parser = try Parser.init(meter.allocator(), std.testing.io, &reader, .{
-                .chunk_size = 64, .memory_budget = budget,
+                .chunk_size = 64,
+                .memory_budget = budget,
             });
             var count: usize = 0;
             _ = try check(&parser, &meter);
@@ -285,7 +287,6 @@ test "M14 reservations and replacement allocations do not bypass the backing bud
     try std.testing.expectEqual(@as(usize, 80), meter.live);
 }
 
-
 test "M14 consumer-held ASCII list lease reports recoverable pressure without losing the staged record" {
     const header = "ply\nformat ascii 1.0\nelement face 2\nproperty list ushort int ids\nend_header\n";
     var fixture: std.ArrayList(u8) = .empty;
@@ -304,7 +305,8 @@ test "M14 consumer-held ASCII list lease reports recoverable pressure without lo
     var probe_meter: Meter = .{};
     var probe_reader: std.Io.Reader = .fixed(fixture.items);
     var probe = try Parser.init(probe_meter.allocator(), std.testing.io, &probe_reader, .{
-        .memory_budget = 1024 * 1024, .chunk_size = 1024,
+        .memory_budget = 1024 * 1024,
+        .chunk_size = 1024,
     });
     var probe_first = (try probe.next()).?;
     const first_live = (try check(&probe, &probe_meter)).live_bytes;
@@ -320,7 +322,8 @@ test "M14 consumer-held ASCII list lease reports recoverable pressure without lo
     var meter: Meter = .{};
     var reader: std.Io.Reader = .fixed(fixture.items);
     var parser = try Parser.init(meter.allocator(), std.testing.io, &reader, .{
-        .memory_budget = limit, .chunk_size = 1024,
+        .memory_budget = limit,
+        .chunk_size = 1024,
     });
     defer {
         parser.deinit();

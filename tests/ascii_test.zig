@@ -53,7 +53,11 @@ test "ASCII list columns preserve typed values, offsets, mixed properties and em
         try std.testing.expect(indices.row(std.math.maxInt(usize)) == null);
         try std.testing.expectEqual(@as(usize, 0), indices.offsets[0]);
         try std.testing.expectEqual(@as(usize, 0), weights.offsets[0]);
-        const expected_count: usize = switch (i) { 0 => 3, 1 => 0, else => 4 };
+        const expected_count: usize = switch (i) {
+            0 => 3,
+            1 => 0,
+            else => 4,
+        };
         try std.testing.expectEqual(expected_count, indices.offsets[1]);
         if (i == 0) {
             try std.testing.expectEqualSlices(i32, &.{ 10, 11, 12 }, indices.row(0).?.i32);
@@ -164,7 +168,8 @@ test "ASCII streaming reuses buffers without collecting whole file" {
     for (0..100000) |i| @memcpy(source[h.len + i * line.len ..][0..line.len], line);
     var reader: std.Io.Reader = .fixed(source);
     var parser = try z.Parser.init(std.testing.allocator, std.testing.io, &reader, .{
-        .chunk_size = 16 * 1024, .memory_budget = 1024 * 1024,
+        .chunk_size = 16 * 1024,
+        .memory_budget = 1024 * 1024,
     });
     defer parser.deinit();
     var count: usize = 0;
@@ -341,7 +346,6 @@ test "ASCII large list record exceeds preferred chunk size but remains budgeted"
     try std.testing.expect(parser.memoryStats().peak_total_bytes <= 512 * 1024);
 }
 
-
 test "ASCII diagnostics point to invalid list item and extra token" {
     const h = "ply\nformat ascii 1.0\nelement face 1\nproperty list uchar int ids\nend_header\n";
     var reader: std.Io.Reader = .fixed(h ++ "3 1 nope 3\n");
@@ -375,7 +379,6 @@ test "ASCII diagnostics identify a missing token at record end" {
     try std.testing.expectEqual(@as(u64, 1), missing.property_index.?);
     try std.testing.expectEqual(body_offset + 3, missing.token_byte_offset.?);
 }
-
 
 test "ListColumn.row rejects an empty offset table and overflowing indices" {
     const empty = z.ListColumn{

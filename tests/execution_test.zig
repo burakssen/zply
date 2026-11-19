@@ -166,7 +166,6 @@ test "scheduler selects the lowest logical failure sequence" {
     try std.testing.expectEqual(@as(usize, 0), scheduler.failure().?.element_index);
 }
 
-
 test "cancelling an execution window releases its unpublished output slots" {
     const header_text = "ply\nformat binary_little_endian 1.0\nelement vertex 1\nproperty float x\nend_header\n";
     var reader: std.Io.Reader = .fixed(header_text);

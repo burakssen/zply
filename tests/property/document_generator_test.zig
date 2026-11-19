@@ -195,9 +195,11 @@ test "M9 same seed generates identical logical records across encodings" {
 
 fn fuzzGenerated(_: void, smith: *std.testing.Smith) !void {
     const seed = smith.value(u64);
-    const enc: Encoding = @enumFromInt(smith.valueRangeAtMost(u8, 0, 2));
+    const enc: Encoding = @fromBackingInt(@intCast(smith.valueRangeAtMost(u8, 0, 2)));
     const size: usize = switch (smith.valueRangeAtMost(u8, 0, 2)) {
-        0 => 64, 1 => 128, else => 512,
+        0 => 64,
+        1 => 128,
+        else => 512,
     };
     const doc = try Document.generate(seed, enc);
     try verify(&doc, size);
