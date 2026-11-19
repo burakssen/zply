@@ -129,9 +129,20 @@ def main() -> int:
     parser.add_argument("capture", type=Path, help="destination for benchmark stderr / CSV")
     parser.add_argument("--metadata", type=Path, help="JSON manifest destination (default: <capture>.json)")
     parser.add_argument("--require-full-matrix", action="store_true")
-    parser.add_argument("command", nargs=argparse.REMAINDER, help="command to execute after --")
-    args = parser.parse_args()
-    command = args.command[1:] if args.command[:1] == ["--"] else args.command
+
+    # Keep the command strictly after `--`, but parse this wrapper's options
+    # before that delimiter. argparse's REMAINDER action otherwise treats
+    # options written after the positional capture path as subprocess
+    # arguments, contradicting the documented invocation form.
+    argv = sys.argv[1:]
+    try:
+        delimiter = argv.index("--")
+    except ValueError:
+        delimiter = len(argv)
+        command: list[str] = []
+    else:
+        command = argv[delimiter + 1:]
+    args = parser.parse_args(argv[:delimiter])
     if not command:
         parser.error("provide the benchmark command after --")
 

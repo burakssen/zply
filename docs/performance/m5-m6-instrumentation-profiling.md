@@ -15,8 +15,15 @@ far less distortion than per-scalar timing and preserves the public parser API.
 ## Build a profiler-friendly benchmark
 
 ```sh
-zig build install-bench -Doptimize=ReleaseFast -Dstrip=false
+zig build install-bench -Doptimize=ReleaseFast
 ```
+
+The benchmark module leaves Zig's `strip` setting unset, so an optimized
+benchmark build retains symbol and DWARF information by default. Before
+profiling, verify that the installed binary actually contains the expected
+symbols on the target platform (for example, `nm -nm zig-out/bin/zply-bench`
+on macOS). Do not pass `-Dstrip=false`: this project deliberately exposes no
+such build option.
 
 Run one long, representative workload rather than a short all-workload matrix.
 For example:

@@ -1,0 +1,14 @@
+.{
+    .name = .zply_consumer_smoke,
+    .version = "0.0.0",
+    .fingerprint = 0x7bda8f983b9fe005,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        .zply = .{ .path = "../.." },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

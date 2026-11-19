@@ -61,6 +61,24 @@ const test_files = [_][]const u8{
     "phase12_numeric_fastpath_test.zig",
 };
 
+const Example = struct {
+    name: []const u8,
+    source: []const u8,
+};
+
+// Examples are independent public-module consumers. Keep their source roots
+// out of tests/ so package users can read and run them without learning the
+// repository's internal test layout.
+const examples = [_]Example{
+    .{ .name = "header_info", .source = "examples/header_info.zig" },
+    .{ .name = "count_records", .source = "examples/count_records.zig" },
+    .{ .name = "xyz_bounds", .source = "examples/xyz_bounds.zig" },
+    .{ .name = "read_lists", .source = "examples/read_lists.zig" },
+    .{ .name = "memory_budget", .source = "examples/memory_budget.zig" },
+    .{ .name = "unordered_batches", .source = "examples/unordered_batches.zig" },
+    .{ .name = "diagnostics", .source = "examples/diagnostics.zig" },
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -85,6 +103,33 @@ pub fn build(b: *std.Build) void {
     });
 
     const test_step = b.step("test", "Run unit and integration tests");
+
+    const examples_step = b.step("examples", "Compile all public zply examples");
+    const test_examples_step = b.step("test-examples", "Run public zply examples against their deterministic inputs");
+    inline for (examples) |example| {
+        const example_mod = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = b.path(example.source),
+        });
+        example_mod.addImport("zply", zply_mod);
+        const example_exe = b.addExecutable(.{
+            .name = "zply-example-" ++ example.name,
+            .root_module = example_mod,
+        });
+        examples_step.dependOn(&example_exe.step);
+        test_examples_step.dependOn(&b.addRunArtifact(example_exe).step);
+    }
+    test_step.dependOn(test_examples_step);
+
+    // This deliberately invokes a separate build root. It catches mistakes
+    // which in-tree tests cannot: a wrong module name, a missing manifest
+    // dependency, or a consumer build graph that cannot resolve `zply`.
+    const consumer_step = b.step("test-consumer", "Build and run the standalone local-path dependency consumer");
+    const consumer_run = b.addSystemCommand(&.{ "zig", "build", "test", "-Doptimize=ReleaseSafe" });
+    consumer_run.setCwd(b.path("tests/consumer"));
+    consumer_step.dependOn(&consumer_run.step);
+    test_step.dependOn(consumer_step);
 
     // Tests declared inside the library's own sources.
     const lib_tests = b.addTest(.{ .root_module = zply_mod });

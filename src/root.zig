@@ -10,10 +10,10 @@
 //! ## Intended usage (functional from Phase 2 onward)
 //!
 //! ```zig
-//! const ply = @import("ply");
+//! const zply = @import("zply");
 //!
 //! var reader: std.Io.Reader = .fixed(ply_bytes);
-//! var parser = try ply.Parser.init(allocator, io, &reader, .{});
+//! var parser = try zply.Parser.init(allocator, io, &reader, .{});
 //! defer parser.deinit();
 //!
 //! const header = parser.header();
