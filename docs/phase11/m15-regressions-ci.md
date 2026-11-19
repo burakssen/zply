@@ -36,7 +36,7 @@ bug history, and add the case to the executable table.
 
 ## Local validation matrix
 
-From `zply/`:
+From the standalone `zply` Git repository root:
 
 ```sh
 zig build test-regression
@@ -67,16 +67,17 @@ checks. It does not create large fixture files on disk.
 Repository-root `.github/workflows/zply-phase11.yml`:
 
 - Pull requests and pushes: Debug, ReleaseSafe and ReleaseFast on Linux x86-64
-  and the GitHub-hosted macOS runner; run `test`, `test-regression`, and
-  regression-test source formatting verification.
+  plus explicit macOS Apple Silicon and Intel runners; run `test`,
+  `test-regression`, and regression-test source formatting verification.
 - Weekly schedule and manual dispatch: additional ReleaseSafe stress, fault
   injection and bounded fuzz campaigns on Linux.
 - Zig version: `0.17.1`, pinned to the version exercised in local M8–M14
-  verification. The repository has a nested `zply/` build root.
+  verification. `build.zig` is at the Git repository root, so CI commands
+  run from the checkout root without a nested working-directory override.
 
-The hosted macOS runner's exact architecture depends on GitHub runner image
-selection; **Apple Silicon coverage still requires an explicit ARM64 runner
-or a separately verified local run.** The CI matrix does not claim this gate.
+The matrix selects macOS ARM64 (`macos-15`) and Intel (`macos-15-intel`)
+runners explicitly. These are configured targets, **not observed successful
+CI executions**; release approval still requires seeing the hosted jobs pass.
 
 Fuzzer findings need to be minimized and committed to the permanent corpus;
 coverage is not a replacement for cross-platform correctness or stress tests.

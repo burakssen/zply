@@ -45,7 +45,7 @@ substitute for those checks.
 
 ## Reproducible local capture
 
-Run at the **Git repository's `zply/` build directory**, using Zig 0.17.1:
+Run at the **standalone `zply` Git repository root** (where `build.zig` lives), using Zig 0.17.1:
 
 ```bash
 zig fmt benchmarks/phase11_performance.zig
@@ -67,8 +67,9 @@ zig version >> phase11-environment.txt
 git rev-parse HEAD >> phase11-environment.txt
 ```
 
-The GitHub Actions `zply-performance.yml` workflow performs a **manual**
-Linux/macOS capture and stores CSV and environment information as artifacts.
+The repository-root GitHub Actions `zply-performance.yml` workflow performs a
+**manual** Linux/macOS capture from the checkout root and stores CSV and
+environment information as artifacts.
 Shared CI runners are appropriate for build correctness and trend exploration,
 but their timings are too variable to establish an automatic cross-run
 performance gate without a controlled machine.

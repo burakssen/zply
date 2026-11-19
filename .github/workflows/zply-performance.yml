@@ -1,0 +1,56 @@
+name: zply Phase 11 performance capture
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: ${{ matrix.os }} / ReleaseFast
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Zig 0.17.1
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+      - name: Validate release tests and CSV comparator
+        run: |
+          zig build test -Doptimize=ReleaseFast
+          python3 scripts/test_compare_phase11.py
+      - name: Capture environment
+        run: |
+          uname -a > phase11-environment.txt
+          zig version >> phase11-environment.txt
+          git rev-parse HEAD >> phase11-environment.txt
+      - name: Run all 28 verified benchmark combinations
+        run: zig build bench-phase11 -Doptimize=ReleaseFast 2> phase11-current.csv
+      - name: Validate complete benchmark matrix
+        run: |
+          python3 - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from compare_phase11 import EXPECTED_KEYS, read_capture
+          rows = read_capture(Path('phase11-current.csv'))
+          assert set(rows) == EXPECTED_KEYS, (len(rows), sorted(EXPECTED_KEYS - set(rows)))
+          for (workload, mode), row in rows.items():
+              if mode.startswith('threaded-'):
+                  assert row['native_submissions'] > 0, (workload, mode)
+          print(f'Validated {len(rows)} benchmark rows.')
+          PY
+      - name: Upload benchmark CSV and environment
+        uses: actions/upload-artifact@v4
+        with:
+          name: zply-phase11-${{ matrix.os }}-${{ github.run_id }}
+          path: |
+            phase11-current.csv
+            phase11-environment.txt
+          if-no-files-found: error

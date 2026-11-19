@@ -1,0 +1,70 @@
+name: zply Phase 11 verification
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase11-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  correctness:
+    name: ${{ matrix.os }} / ${{ matrix.optimize }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+        optimize: [Debug, ReleaseSafe, ReleaseFast]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Zig 0.17.1
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+      - name: Verify compiler and host
+        run: |
+          zig version
+          uname -a
+      - name: Run unit and integration tests
+        run: zig build test -Doptimize=${{ matrix.optimize }}
+      - name: Run permanent regression corpus
+        run: zig build test-regression -Doptimize=${{ matrix.optimize }}
+      - name: Check M15/M16 formatting and comparison tests
+        if: matrix.optimize == 'Debug'
+        run: |
+          zig fmt --check tests/phase11_regression_test.zig benchmarks/phase11_performance.zig
+          python3 scripts/test_compare_phase11.py
+
+  extended:
+    name: Extended fault, stress and fuzz checks
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Zig 0.17.1
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+      - name: Fault and lifecycle validation
+        run: |
+          zig build test-faults -Doptimize=ReleaseSafe
+          zig build test-concurrency -Doptimize=ReleaseSafe
+          zig build test-ownership-memory -Doptimize=ReleaseSafe
+      - name: Large stream stress validation
+        run: zig build test-stress -Doptimize=ReleaseSafe
+      - name: Bounded fuzz campaigns
+        run: |
+          zig build fuzz-phase11 --fuzz=1000
+          zig build fuzz-valid-ply --fuzz=1000
+          zig build fuzz-differential --fuzz=1000
+          zig build fuzz-metamorphic --fuzz=1000
