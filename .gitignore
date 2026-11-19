@@ -4,3 +4,9 @@ zig-cache/
 zig-out/
 *.o
 *.lib
+
+# Benchmark runs and Python test caches are generated locally.
+phase11-*.csv
+phase11-environment.txt
+__pycache__/
+*.py[cod]
