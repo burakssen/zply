@@ -43,6 +43,12 @@ jobs:
         run: |
           zig fmt --check tests/phase11_regression_test.zig benchmarks/phase11_performance.zig
           python3 scripts/test_compare_phase11.py
+          python3 scripts/check_benchmark_audit.py
+          python3 scripts/test_check_benchmark_audit.py
+          python3 scripts/test_check_phase12_capture.py
+          zig build test-bench-harness -Doptimize=ReleaseSafe
+          zig build bench-phase12 -Doptimize=ReleaseFast -- --records=10000 --warmups=1 --rounds=3 --mode=single-ordered 2> phase12-smoke.csv
+          python3 scripts/check_phase12_capture.py phase12-smoke.csv
 
   extended:
     name: Extended fault, stress and fuzz checks

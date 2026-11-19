@@ -5,14 +5,14 @@
 const std = @import("std");
 const zply = @import("zply");
 
-const record_count: usize = 250_000;
+pub const record_count: usize = 250_000;
 const warmup_rounds: usize = 2;
 const measured_rounds: usize = 9;
-const normal_chunk: usize = 256 * 1024;
-const small_chunk: usize = 8 * 1024;
-const memory_budget: usize = 16 * 1024 * 1024;
+pub const normal_chunk: usize = 256 * 1024;
+pub const small_chunk: usize = 8 * 1024;
+pub const memory_budget: usize = 16 * 1024 * 1024;
 
-const Kind = enum {
+pub const Kind = enum {
     binary_xyz_f32,
     binary_xyz_f64,
     binary_xyzrgb,
@@ -21,7 +21,7 @@ const Kind = enum {
     ascii_xyz,
     ascii_polygons,
 
-    fn isPolygon(self: Kind) bool {
+    pub fn isPolygon(self: Kind) bool {
         return switch (self) {
             .binary_polygons_le, .binary_polygons_be, .ascii_polygons => true,
             else => false,
@@ -29,13 +29,13 @@ const Kind = enum {
     }
 };
 
-const Mode = enum {
+pub const Mode = enum {
     single_ordered,
     threaded_ordered,
     threaded_unordered,
     single_small_chunk,
 
-    fn label(self: Mode) []const u8 {
+    pub fn label(self: Mode) []const u8 {
         return switch (self) {
             .single_ordered => "single-ordered",
             .threaded_ordered => "threaded-ordered",
@@ -44,35 +44,18 @@ const Mode = enum {
         };
     }
 
-    fn chunk(self: Mode) usize {
+    pub fn chunk(self: Mode) usize {
         return if (self == .single_small_chunk) small_chunk else normal_chunk;
     }
 };
 
-const modes = [_]Mode{ .single_ordered, .threaded_ordered, .threaded_unordered, .single_small_chunk };
-const workloads = [_]Kind{ .binary_xyz_f32, .binary_xyz_f64, .binary_xyzrgb, .binary_polygons_le, .binary_polygons_be, .ascii_xyz, .ascii_polygons };
+pub const modes = [_]Mode{ .single_ordered, .threaded_ordered, .threaded_unordered, .single_small_chunk };
+pub const workloads = [_]Kind{ .binary_xyz_f32, .binary_xyz_f64, .binary_xyzrgb, .binary_polygons_le, .binary_polygons_be, .ascii_xyz, .ascii_polygons };
 
-fn mix(initial: u64) u64 {
-    var x = initial;
-    x = (x ^ (x >> 30)) *% 0xbf58476d1ce4e5b9;
-    x = (x ^ (x >> 27)) *% 0x94d049bb133111eb;
-    return x ^ (x >> 31);
-}
-
-const Digest = struct {
-    sum: u64 = 0,
-    xor_value: u64 = 0,
-
-    fn add(self: *Digest, hash: u64) void {
-        const value = mix(hash);
-        self.sum +%= value;
-        self.xor_value ^= value;
-    }
-
-    fn eql(self: Digest, other: Digest) bool {
-        return self.sum == other.sum and self.xor_value == other.xor_value;
-    }
-};
+const digest_util = @import("digest.zig");
+const timing = @import("timing.zig");
+const mix = digest_util.mix;
+const Digest = digest_util.Digest;
 
 fn hashXYZ32(index: usize, x: u32, y: u32, zz: u32, rgb: ?[3]u8) u64 {
     var h = mix(@as(u64, @intCast(index))) ^ mix(x) ^ mix(y +% 0x9e3779b9) ^ mix(zz +% 0x85ebca6b);
@@ -125,19 +108,24 @@ fn rgbFor(index: usize) [3]u8 {
     return .{ @truncate(index), @truncate(index *% 7), @truncate(index *% 13) };
 }
 
-const Input = struct {
+pub const Input = struct {
+    records: usize,
     bytes: []u8,
     body_bytes: usize,
     list_items: usize,
     kind: Kind,
     expected: Digest,
 
-    fn deinit(self: Input, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: Input, allocator: std.mem.Allocator) void {
         allocator.free(self.bytes);
     }
 };
 
-fn createInput(allocator: std.mem.Allocator, kind: Kind) !Input {
+pub fn createInput(allocator: std.mem.Allocator, kind: Kind) !Input {
+    return createInputWithRecords(allocator, kind, record_count);
+}
+
+pub fn createInputWithRecords(allocator: std.mem.Allocator, kind: Kind, records: usize) !Input {
     const format: []const u8 = switch (kind) {
         .ascii_xyz, .ascii_polygons => "ascii",
         .binary_polygons_be => "binary_big_endian",
@@ -153,7 +141,7 @@ fn createInput(allocator: std.mem.Allocator, kind: Kind) !Input {
     const header = try std.fmt.allocPrint(
         allocator,
         "ply\nformat {s} 1.0\nelement {s} {d}\n{s}end_header\n",
-        .{ format, element, record_count, properties },
+        .{ format, element, records, properties },
     );
     defer allocator.free(header);
 
@@ -166,7 +154,7 @@ fn createInput(allocator: std.mem.Allocator, kind: Kind) !Input {
     };
     var body_bytes: usize = 0;
     var list_items: usize = 0;
-    for (0..record_count) |index| {
+    for (0..records) |index| {
         const n = polygonCount(index);
         body_bytes += switch (kind) {
             .binary_xyz_f32 => 12,
@@ -185,7 +173,7 @@ fn createInput(allocator: std.mem.Allocator, kind: Kind) !Input {
     var expected: Digest = .{};
     const values = [_]i32{ 1, 2, 3, 4, 5 };
     const endian: std.builtin.Endian = if (kind == .binary_polygons_be) .big else .little;
-    for (0..record_count) |index| {
+    for (0..records) |index| {
         switch (kind) {
             .binary_xyz_f32, .binary_xyzrgb => {
                 const xyz = xyz32(index);
@@ -234,10 +222,11 @@ fn createInput(allocator: std.mem.Allocator, kind: Kind) !Input {
         }
     }
     std.debug.assert(cursor == bytes.len);
-    return .{ .bytes = bytes, .body_bytes = body_bytes, .list_items = list_items, .kind = kind, .expected = expected };
+    return .{ .records = records, .bytes = bytes, .body_bytes = body_bytes, .list_items = list_items, .kind = kind, .expected = expected };
 }
 
-const Sample = struct {
+pub const Sample = struct {
+    body_nanoseconds: i96,
     nanoseconds: i96,
     batches: usize,
     peak_bytes: usize,
@@ -246,15 +235,31 @@ const Sample = struct {
     max_active: usize,
 };
 
-fn runOnce(allocator: std.mem.Allocator, io: std.Io, input: Input, mode: Mode) !Sample {
+pub const RunOptions = struct {
+    chunk_size: usize,
+    memory_budget: usize,
+};
+
+pub fn runOnce(allocator: std.mem.Allocator, io: std.Io, input: Input, mode: Mode) !Sample {
+    return runOnceConfigured(allocator, io, input, mode, .{
+        .chunk_size = mode.chunk(),
+        .memory_budget = memory_budget,
+    });
+}
+
+/// Identical verified parser/consumer path to M16, with caller-selected
+/// workload size, chunk target and budget. Both timing scopes are captured.
+pub fn runOnceConfigured(allocator: std.mem.Allocator, io: std.Io, input: Input, mode: Mode, options: RunOptions) !Sample {
     var reader: std.Io.Reader = .fixed(input.bytes);
     const start = std.Io.Clock.awake.now(io);
     var parser = try zply.Parser.init(allocator, io, &reader, .{
-        .chunk_size = mode.chunk(),
-        .memory_budget = memory_budget,
+        .chunk_size = options.chunk_size,
+        .memory_budget = options.memory_budget,
         .preserve_order = mode != .threaded_unordered,
     });
-    errdefer parser.deinit();
+    var parser_live = true;
+    errdefer if (parser_live) parser.deinit();
+    const body_start = std.Io.Clock.awake.now(io);
     var digest: Digest = .{};
     var records: usize = 0;
     var items: usize = 0;
@@ -264,7 +269,7 @@ fn runOnce(allocator: std.mem.Allocator, io: std.Io, input: Input, mode: Mode) !
         defer batch.release();
         const info = batch.info();
         const start_record: usize = @intCast(info.first_record);
-        if (info.element_index != 0 or start_record + info.record_count > record_count) return error.InvalidBatchMetadata;
+        if (info.element_index != 0 or start_record + info.record_count > input.records) return error.InvalidBatchMetadata;
         if (input.kind.isPolygon()) {
             const lists = try batch.listColumn(0);
             const material = try batch.typedColumn(u16, 1);
@@ -304,24 +309,28 @@ fn runOnce(allocator: std.mem.Allocator, io: std.Io, input: Input, mode: Mode) !
         records += info.record_count;
         batches += 1;
     }
+    const body_end = std.Io.Clock.awake.now(io);
     const memory = parser.memoryStats();
     const execution = parser.executionStats();
     parser.deinit();
+    parser_live = false;
     // Do not report a "threaded" speedup if native submission silently
     // fell back to synchronous execution for the entire workload.
     if ((mode == .threaded_ordered or mode == .threaded_unordered) and
         execution.native_submissions == 0) return error.NativeConcurrencyInactive;
     const end = std.Io.Clock.awake.now(io);
-    if (memory.peak_total_bytes > memory_budget or records != record_count or items != input.list_items or !digest.eql(input.expected)) {
+    if (memory.peak_total_bytes > options.memory_budget or records != input.records or items != input.list_items or !digest.eql(input.expected)) {
         std.debug.print("INVALID BENCHMARK workload={s} mode={s} records={d}/{d} items={d}/{d}\n", .{
-            @tagName(input.kind), mode.label(), records, record_count, items, input.list_items,
+            @tagName(input.kind), mode.label(), records, input.records, items, input.list_items,
         });
         return error.IncorrectDecodedOutput;
     }
-    const elapsed = start.durationTo(end).nanoseconds;
-    if (elapsed <= 0) return error.InvalidMeasurement;
+    const elapsed = try timing.elapsedNs(start, end);
+    const body_elapsed = try timing.elapsedNs(body_start, body_end);
+    if (body_elapsed > elapsed) return error.InvalidMeasurement;
     return .{
         .nanoseconds = elapsed,
+        .body_nanoseconds = body_elapsed,
         .batches = batches,
         .peak_bytes = memory.peak_total_bytes,
         .native_submissions = execution.native_submissions,

@@ -320,6 +320,33 @@ pub fn build(b: *std.Build) void {
     const m16_perf_step = b.step("bench-phase11", "Run Phase 11 M16 verified, cross-encoding performance matrix (CSV)");
     m16_perf_step.dependOn(&b.addRunArtifact(m16_perf_exe).step);
 
+    // Phase 12 M2: unified, parameterized, cross-encoding verified benchmark.
+    // Pass options to the executable after --, e.g.:
+    //   zig build bench-phase12 -Doptimize=ReleaseFast -- --records=10000 --rounds=3
+    const phase12_mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("benchmarks/main.zig"),
+    });
+    phase12_mod.addImport("zply", zply_mod);
+    const phase12_exe = b.addExecutable(.{ .name = "zply-bench", .root_module = phase12_mod });
+    const phase12_run = b.addRunArtifact(phase12_exe);
+    phase12_run.addPassthruArgs();
+    const phase12_step = b.step("bench-phase12", "Unified Phase 12 benchmark (raw samples + summaries, CSV)");
+    phase12_step.dependOn(&phase12_run.step);
+
+    const phase12_test_mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("benchmarks/harness_test.zig"),
+    });
+    phase12_test_mod.addImport("zply", zply_mod);
+    const phase12_tests = b.addTest(.{ .root_module = phase12_test_mod });
+    const phase12_test_run = b.addRunArtifact(phase12_tests);
+    const phase12_test_step = b.step("test-bench-harness", "Validate Phase 12 M2 benchmark configuration, digest, and statistics");
+    phase12_test_step.dependOn(&phase12_test_run.step);
+    test_step.dependOn(&phase12_test_run.step);
+
     // In-memory decode benchmarks (Phase 3): run with
     //   zig build bench -Doptimize=ReleaseFast
     const bench_mod = b.createModule(.{
